@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lone Wolf Gamebook Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <h1>Lone Wolf Assistant</h1>
+      <p>Track your hero, inventory, notes, and run full combat rounds with the official table.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card" id="stats-card">
+      <h2>Stats</h2>
+      <div class="grid two">
+        <label>Max Combat Skill <input id="max-cs" type="number" min="0" value="15"></label>
+        <label>Current Combat Skill <input id="current-cs" type="number" min="0" value="15"></label>
+        <label>Max Endurance <input id="max-ep" type="number" min="0" value="25"></label>
+        <label>Current Endurance <input id="current-ep" type="number" min="0" value="25"></label>
+      </div>
+      <div class="effective-box">
+        <div>Effective Max Combat Skill: <strong id="effective-cs">15</strong></div>
+        <div>Effective Max Endurance: <strong id="effective-ep">25</strong></div>
+      </div>
+    </section>
+
+    <section class="card" id="skills-card">
+      <h2>Skills</h2>
+      <div class="grid two">
+        <label>Add Skill
+          <select id="skill-select"></select>
+        </label>
+        <button id="add-skill">Add Skill</button>
+      </div>
+      <div class="grid two">
+        <label>Weaponskill Weapon <input id="weaponskill-weapon" placeholder="Sword"></label>
+        <label>Weaponmastery Weapon <input id="weaponmastery-weapon" placeholder="Axe"></label>
+      </div>
+      <div class="grid one">
+        <label>Grand Weaponmastery Weapon <input id="grandweaponmastery-weapon" placeholder="Spear"></label>
+      </div>
+      <div class="effective-box">
+        <div>Current Rank: <strong id="rank-display">Unranked</strong></div>
+      </div>
+      <h3>Current Skills</h3>
+      <ul id="current-skills" class="pill-list"></ul>
+      <h3>Active Lore Circles</h3>
+      <ul id="active-circles"></ul>
+    </section>
+
+    <section class="card" id="inventory-card">
+      <h2>Inventory</h2>
+      <div class="grid two">
+        <label>Backpack Item <input id="backpack-item-input" placeholder="Rope"></label>
+        <button id="add-backpack-item">Add Backpack Item</button>
+        <label>Weapon <input id="weapon-input" placeholder="Sword"></label>
+        <button id="add-weapon">Add Weapon</button>
+        <label>Special Item <input id="special-item-input" placeholder="Crystal Star Pendant"></label>
+        <button id="add-special-item">Add Special Item</button>
+      </div>
+      <div class="grid two">
+        <label>Meals <input id="meals-input" type="number" min="0" value="0"></label>
+        <label>Gold Crowns <input id="gold-input" type="number" min="0" max="50" value="0"></label>
+      </div>
+      <div class="grid three">
+        <label>Quiver Name <input id="quiver-name" placeholder="Quiver 1"></label>
+        <label>Arrows <input id="quiver-arrows" type="number" min="0" max="6" value="6"></label>
+        <button id="add-quiver">Add Quiver</button>
+      </div>
+      <div class="lists">
+        <div>
+          <h3>Backpack Items</h3>
+          <ul id="backpack-list"></ul>
+        </div>
+        <div>
+          <h3>Weapons</h3>
+          <ul id="weapons-list"></ul>
+        </div>
+        <div>
+          <h3>Special Items</h3>
+          <ul id="special-items-list"></ul>
+        </div>
+        <div>
+          <h3>Quivers</h3>
+          <ul id="quivers-list"></ul>
+        </div>
+      </div>
+      <p class="rule-text">Limits: Backpack 8 total entries including meals, Weapons 2, Special Items 12, Gold Crowns 50, each quiver max 6 arrows.</p>
+    </section>
+
+    <section class="card" id="notes-card">
+      <h2>Notes</h2>
+      <div class="grid two">
+        <label>Book
+          <select id="note-book"></select>
+        </label>
+        <label>Note <input id="note-text" placeholder="Remember the hidden key."></label>
+      </div>
+      <button id="add-note">Add Note</button>
+      <ul id="notes-list"></ul>
+    </section>
+
+    <section class="card" id="combat-card">
+      <h2>Combat Simulator</h2>
+      <div class="grid two">
+        <label>Enemy CS <input id="enemy-cs" type="number" min="0" value="15"></label>
+        <label>Enemy EP <input id="enemy-ep" type="number" min="1" value="20"></label>
+        <label>Enemy CS Modifier <input id="enemy-cs-mod" type="number" value="0"></label>
+        <label>Allow Evade After Rounds <input id="evade-after" type="number" min="0" value="0"></label>
+      </div>
+      <div class="grid two checks">
+        <label><input id="enemy-psychic-attack" type="checkbox"> Enemy uses Mindblast</label>
+        <label><input id="enemy-psychic-immune" type="checkbox"> Enemy is psychic immune</label>
+        <label><input id="enemy-undead" type="checkbox"> Enemy is undead</label>
+        <label><input id="using-shield" type="checkbox"> Lone Wolf uses shield one-handed</label>
+        <label><input id="wearing-silver-helm" type="checkbox"> Silver Helm bonus active</label>
+        <label><input id="wearing-chainmail" type="checkbox"> Chainmail max EP bonus active</label>
+      </div>
+      <div class="grid two">
+        <label>Wielded Weapon
+          <select id="wielded-weapon"></select>
+        </label>
+        <label>Mental Discipline
+          <select id="mental-discipline"></select>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="start-combat">Start Combat</button>
+        <button id="next-round" disabled>Next Round</button>
+        <button id="evade" disabled>Evade</button>
+      </div>
+      <div class="combat-status">
+        <p><strong>Status:</strong> <span id="combat-status">Idle</span></p>
+        <p><strong>Enemy EP:</strong> <span id="combat-enemy-ep">-</span></p>
+        <p><strong>Rounds:</strong> <span id="combat-rounds">0</span></p>
+      </div>
+      <ul id="combat-log" class="log"></ul>
+    </section>
+
+    <section class="card" id="save-card">
+      <h2>Save and Load</h2>
+      <div class="grid three">
+        <label>Book
+          <select id="save-book"></select>
+        </label>
+        <label>Page <input id="save-page" type="number" min="1" value="1"></label>
+        <label>Session Name <input id="save-session" placeholder="Morning Run"></label>
+      </div>
+      <div class="actions">
+        <button id="save-game">Save Game</button>
+        <button id="refresh-saves">Refresh Saves</button>
+      </div>
+      <ul id="save-list"></ul>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Resume Adventure</h3>
+      <p id="modal-text"></p>
+      <button id="close-modal">Close</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
