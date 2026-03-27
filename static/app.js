@@ -57,6 +57,34 @@ function getAllSkills() {
   ];
 }
 
+function getSkillGroup(skill) {
+  if (!bootstrapData) return "Unknown";
+  const skills = bootstrapData.kai_skills;
+  if (skills.kai_disciplines.includes(skill)) return "Kai";
+  if (skills.magnakai_disciplines.includes(skill)) return "Magnakai";
+  if (skills.grand_master_disciplines.includes(skill) ||
+      skills.new_order_grand_master_disciplines.includes(skill)) {
+    return "Grandmaster";
+  }
+  return "Unknown";
+}
+
+function skillGroupOrder(skill) {
+  const group = getSkillGroup(skill);
+  if (group === "Kai") return 0;
+  if (group === "Magnakai") return 1;
+  if (group === "Grandmaster") return 2;
+  return 3;
+}
+
+function sortSkillsByGroupAndName(skillsList) {
+  return skillsList.slice().sort((a, b) => {
+    const orderDiff = skillGroupOrder(a) - skillGroupOrder(b);
+    if (orderDiff !== 0) return orderDiff;
+    return a.localeCompare(b);
+  });
+}
+
 function calculateLoreBonuses() {
   let bonusCS = 0;
   let bonusEP = 0;
@@ -160,10 +188,10 @@ function renderStats() {
 function renderSkills() {
   const currentList = $("current-skills");
   currentList.innerHTML = "";
-  state.current_skills_list.slice().sort().forEach((skill) => {
+  sortSkillsByGroupAndName(state.current_skills_list).forEach((skill) => {
     const li = document.createElement("li");
     li.className = "pill";
-    li.textContent = skill;
+    li.textContent = `${skill} (${getSkillGroup(skill)})`;
     const btn = document.createElement("button");
     btn.textContent = "Remove";
     btn.addEventListener("click", () => {
@@ -613,11 +641,25 @@ function fillSelectors() {
 
   const skillSelect = $("skill-select");
   skillSelect.innerHTML = "";
-  getAllSkills().sort().forEach((skill) => {
-    const option = document.createElement("option");
-    option.value = skill;
-    option.textContent = skill;
-    skillSelect.appendChild(option);
+  const grouped = {
+    Kai: sortSkillsByGroupAndName(bootstrapData.kai_skills.kai_disciplines),
+    Magnakai: sortSkillsByGroupAndName(bootstrapData.kai_skills.magnakai_disciplines),
+    Grandmaster: sortSkillsByGroupAndName([
+      ...bootstrapData.kai_skills.grand_master_disciplines,
+      ...bootstrapData.kai_skills.new_order_grand_master_disciplines
+    ])
+  };
+
+  ["Kai", "Magnakai", "Grandmaster"].forEach((groupName) => {
+    const optGroup = document.createElement("optgroup");
+    optGroup.label = groupName;
+    grouped[groupName].forEach((skill) => {
+      const option = document.createElement("option");
+      option.value = skill;
+      option.textContent = `${skill} (${groupName})`;
+      optGroup.appendChild(option);
+    });
+    skillSelect.appendChild(optGroup);
   });
 }
 
