@@ -1,177 +1,1980 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lone Wolf Gamebook Assistant</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* ===== Variables ===== */
+    :root {
+      --gold: #c9a84c;
+      --gold-light: #f0c060;
+      --dark: #0f0f1a;
+      --panel: #16213e;
+      --panel2: #1e2a45;
+      --accent: #c9a84c;
+      --red: #e05252;
+      --green: #52c083;
+      --blue: #5285c0;
+      --radius: 8px;
+      --shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    /* ===== Header ===== */
+    header {
+      background: linear-gradient(135deg, #0f0f1a 0%, #16213e 100%);
+      border-bottom: 2px solid var(--gold);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+    header h1 {
+      font-size: 1.4rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+      flex: 1;
+    }
+    header .header-btns { display: flex; gap: 8px; }
+
+    /* ===== Tabs ===== */
+    .tabs {
+      display: flex;
+      background: var(--dark);
+      border-bottom: 2px solid var(--panel2);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: #ccc; background: var(--panel2); }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* ===== Main Container ===== */
+    .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+
+    /* ===== Panels ===== */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel2);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .panel h2 {
+      font-size: 1rem;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--panel2);
+      padding-bottom: 8px;
+    }
+    .panel h3 { font-size: 0.95rem; color: var(--gold-light); margin-bottom: 8px; margin-top: 12px; }
+
+    /* ===== Buttons ===== */
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .btn-primary { background: var(--gold); color: #1a1a2e; }
+    .btn-primary:hover { background: var(--gold-light); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { background: #f06060; }
+    .btn-success { background: var(--green); color: #1a1a2e; }
+    .btn-success:hover { background: #60d090; }
+    .btn-secondary { background: var(--panel2); color: #ccc; border: 1px solid #333; }
+    .btn-secondary:hover { background: #253550; }
+    .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ===== Inputs ===== */
+    input[type=text], input[type=number], select, textarea {
+      background: var(--dark);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      color: #e0e0e0;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+      width: 100%;
+    }
+    input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    select option { background: var(--dark); }
+
+    /* ===== Stat Bar ===== */
+    .stat-bar-wrap { margin-bottom: 10px; }
+    .stat-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem; }
+    .stat-bar-label span:first-child { color: #aaa; }
+    .stat-bar-label span:last-child { color: #fff; font-weight: bold; }
+    .stat-bar { height: 12px; background: #222; border-radius: 6px; overflow: hidden; }
+    .stat-bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+    .stat-bar-fill.cs { background: linear-gradient(90deg, #5285c0, #80aaff); }
+    .stat-bar-fill.ep { background: linear-gradient(90deg, #52c083, #80e0a0); }
+
+    /* ===== Grid Layouts ===== */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Stat Controls ===== */
+    .stat-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .stat-control label { flex: 1; font-size: 0.85rem; color: #aaa; }
+    .stat-control .stat-val {
+      min-width: 40px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1rem;
+      color: #fff;
+    }
+    .stat-btn {
+      width: 30px; height: 30px;
+      border: none; border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .stat-btn.minus { background: #5a2020; color: #f08080; }
+    .stat-btn.minus:hover { background: #7a2020; }
+    .stat-btn.plus { background: #1a4a2e; color: #80e0a0; }
+    .stat-btn.plus:hover { background: #1a6a3e; }
+
+    /* ===== Inventory ===== */
+    .inv-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--panel2);
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+    }
+    .inv-item span { flex: 1; font-size: 0.9rem; }
+    .inv-item .item-tag {
+      font-size: 0.7rem;
+      background: #333;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #aaa;
+    }
+    .inv-count { font-size: 0.8rem; color: #888; margin-bottom: 8px; }
+    .inv-add-row { display: flex; gap: 8px; margin-top: 8px; }
+    .inv-add-row input { flex: 1; }
+
+    /* ===== Skills ===== */
+    .skill-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      margin-bottom: 4px;
+      background: var(--panel2);
+    }
+    .skill-item.active { background: #1a3a1a; border: 1px solid #2a5a2a; }
+    .skill-item span { flex: 1; font-size: 0.88rem; }
+    .skill-item .skill-bonus { font-size: 0.75rem; color: #80c0a0; font-style: italic; }
+    .circle-badge {
+      display: inline-block;
+      background: #3a2a00;
+      border: 1px solid var(--gold);
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--gold);
+      padding: 2px 8px;
+      margin: 4px 4px 0 0;
+    }
+
+    /* ===== Combat ===== */
+    .combat-log {
+      background: var(--dark);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      padding: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      font-family: 'Courier New', monospace;
+    }
+    .combat-log p { margin-bottom: 4px; }
+    .combat-log .round-sep { color: var(--gold); border-top: 1px dashed #333; margin: 8px 0 4px; }
+    .combat-log .win { color: var(--green); font-weight: bold; }
+    .combat-log .lose { color: var(--red); font-weight: bold; }
+    .combat-modifier { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .combat-modifier label { flex: 1; font-size: 0.88rem; }
+    .combat-modifier input[type=checkbox] { width: auto; }
+
+    /* ===== Notes ===== */
+    .note-item {
+      background: var(--panel2);
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .note-item .note-meta { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+    .note-item .note-text { font-size: 0.88rem; white-space: pre-wrap; }
+    .note-item .note-footer { display: flex; justify-content: flex-end; margin-top: 6px; }
+
+    /* ===== Modals ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+    }
+    .modal h2 { color: var(--gold); margin-bottom: 16px; font-size: 1.1rem; }
+    .modal .modal-footer { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ===== Form helpers ===== */
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px; }
+    .form-row .hint { font-size: 0.78rem; color: #666; margin-top: 4px; }
+    .rolled-val {
+      display: inline-block;
+      background: var(--dark);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 4px 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--gold);
+      min-width: 50px;
+      text-align: center;
+    }
+
+    /* ===== Discipline selector ===== */
+    .disc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    @media (max-width: 480px) { .disc-grid { grid-template-columns: 1fr; } }
+    .disc-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .disc-option:hover { border-color: var(--gold); background: #1a1a2e; }
+    .disc-option.selected { border-color: var(--green); background: #0a1a0a; }
+    .disc-option input[type=checkbox] { width: auto; flex-shrink: 0; margin-top: 2px; }
+    .disc-option-text strong { display: block; font-size: 0.88rem; }
+    .disc-option-text small { color: #888; font-size: 0.75rem; }
+
+    /* ===== Equipment selector ===== */
+    .equip-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: all 0.15s;
+    }
+    .equip-option:hover { border-color: var(--gold); }
+    .equip-option.selected { border-color: var(--green); background: #0a1a0a; }
+    .equip-option input[type=checkbox] { width: auto; }
+
+    /* ===== Saves ===== */
+    .save-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--panel2);
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+    }
+    .save-item span { flex: 1; font-size: 0.88rem; }
+    .save-item small { color: #666; font-size: 0.75rem; }
+
+    /* ===== Rank display ===== */
+    .rank-badge {
+      display: inline-block;
+      background: #2a1a00;
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      color: var(--gold);
+    }
+
+    /* ===== Toasts ===== */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: var(--panel2);
+      border: 1px solid #444;
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      font-size: 0.88rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      max-width: 280px;
+    }
+    .toast.show { opacity: 1; }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+    .toast.info { border-color: var(--gold); color: var(--gold); }
+
+    /* ===== Hidden ===== */
+    .hidden { display: none !important; }
+
+    /* ===== Tab Pages ===== */
+    .tab-page { display: none; }
+    .tab-page.active { display: block; }
+
+    /* ===== Gold display ===== */
+    .gold-display {
+      display: flex; align-items: center; gap: 10px;
+      background: #2a1a00; border: 1px solid var(--gold);
+      border-radius: var(--radius); padding: 8px 14px; margin-bottom: 10px;
+    }
+    .gold-display span { font-size: 1.2rem; font-weight: bold; color: var(--gold); }
+    .gold-display small { color: #888; font-size: 0.8rem; }
+
+    /* ===== Welcome/New Game ===== */
+    .welcome-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .welcome-screen h2 { color: var(--gold); font-size: 1.8rem; margin-bottom: 16px; }
+    .welcome-screen p { color: #aaa; margin-bottom: 24px; font-size: 1rem; }
+    .welcome-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* ===== Char sheet header ===== */
+    .char-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  </style>
 </head>
 <body>
-  <header class="hero">
-    <div>
-      <h1>Lone Wolf Assistant</h1>
-      <p>Track your hero, inventory, notes, and run full combat rounds with the official table.</p>
-    </div>
-  </header>
 
-  <main class="layout">
-    <section class="card" id="stats-card">
-      <h2>Stats</h2>
-      <div class="grid two">
-        <label>Max Combat Skill <input id="max-cs" type="number" min="0" value="15"></label>
-        <label>Current Combat Skill <input id="current-cs" type="number" min="0" value="15"></label>
-        <label>Max Endurance <input id="max-ep" type="number" min="0" value="25"></label>
-        <label>Current Endurance <input id="current-ep" type="number" min="0" value="25"></label>
-      </div>
-      <div class="effective-box">
-        <div>Effective Max Combat Skill: <strong id="effective-cs">15</strong></div>
-        <div>Effective Max Endurance: <strong id="effective-ep">25</strong></div>
-      </div>
-    </section>
+<header>
+  <h1>⚔ Lone Wolf Gamebook Assistant</h1>
+  <div class="header-btns">
+    <button class="btn btn-secondary btn-sm" onclick="openSaveModal()">Save</button>
+    <button class="btn btn-secondary btn-sm" onclick="openLoadModal()">Load</button>
+    <button class="btn btn-danger btn-sm" onclick="confirmNewGame()">New Game</button>
+  </div>
+</header>
 
-    <section class="card" id="skills-card">
-      <h2>Skills</h2>
-      <div class="grid two">
-        <label>Add Skill
-          <select id="skill-select"></select>
-        </label>
-        <button id="add-skill">Add Skill</button>
-      </div>
-      <div class="grid two">
-        <label>Weaponskill Weapon <input id="weaponskill-weapon" placeholder="Sword"></label>
-        <label>Weaponmastery Weapon <input id="weaponmastery-weapon" placeholder="Axe"></label>
-      </div>
-      <div class="grid one">
-        <label>Grand Weaponmastery Weapon <input id="grandweaponmastery-weapon" placeholder="Spear"></label>
-      </div>
-      <div class="effective-box">
-        <div>Current Rank: <strong id="rank-display">Unranked</strong></div>
-      </div>
-      <h3>Current Skills</h3>
-      <ul id="current-skills" class="pill-list"></ul>
-      <h3>Active Lore Circles</h3>
-      <ul id="active-circles"></ul>
-    </section>
+<div class="tabs" id="main-tabs">
+  <button class="tab-btn active" data-tab="sheet">Character Sheet</button>
+  <button class="tab-btn" data-tab="skills">Skills</button>
+  <button class="tab-btn" data-tab="inventory">Inventory</button>
+  <button class="tab-btn" data-tab="combat">Combat</button>
+  <button class="tab-btn" data-tab="notes">Notes</button>
+</div>
 
-    <section class="card" id="inventory-card">
-      <h2>Inventory</h2>
-      <div class="grid two">
-        <label>Backpack Item <input id="backpack-item-input" placeholder="Rope"></label>
-        <button id="add-backpack-item">Add Backpack Item</button>
-        <label>Weapon <input id="weapon-input" placeholder="Sword"></label>
-        <button id="add-weapon">Add Weapon</button>
-        <label>Special Item <input id="special-item-input" placeholder="Crystal Star Pendant"></label>
-        <button id="add-special-item">Add Special Item</button>
-      </div>
-      <div class="grid two">
-        <label>Meals <input id="meals-input" type="number" min="0" value="0"></label>
-        <label>Gold Crowns <input id="gold-input" type="number" min="0" max="50" value="0"></label>
-      </div>
-      <div class="grid three">
-        <label>Quiver Name <input id="quiver-name" placeholder="Quiver 1"></label>
-        <label>Arrows <input id="quiver-arrows" type="number" min="0" max="6" value="6"></label>
-        <button id="add-quiver">Add Quiver</button>
-      </div>
-      <div class="lists">
-        <div>
-          <h3>Backpack Items</h3>
-          <ul id="backpack-list"></ul>
-        </div>
-        <div>
-          <h3>Weapons</h3>
-          <ul id="weapons-list"></ul>
-        </div>
-        <div>
-          <h3>Special Items</h3>
-          <ul id="special-items-list"></ul>
-        </div>
-        <div>
-          <h3>Quivers</h3>
-          <ul id="quivers-list"></ul>
-        </div>
-      </div>
-      <p class="rule-text">Limits: Backpack 8 total entries including meals, Weapons 2, Special Items 12, Gold Crowns 50, each quiver max 6 arrows.</p>
-    </section>
+<div class="container">
 
-    <section class="card" id="notes-card">
-      <h2>Notes</h2>
-      <div class="grid two">
-        <label>Book
-          <select id="note-book"></select>
-        </label>
-        <label>Note <input id="note-text" placeholder="Remember the hidden key."></label>
-      </div>
-      <button id="add-note">Add Note</button>
-      <ul id="notes-list"></ul>
-    </section>
-
-    <section class="card" id="combat-card">
-      <h2>Combat Simulator</h2>
-      <div class="grid two">
-        <label>Enemy CS <input id="enemy-cs" type="number" min="0" value="15"></label>
-        <label>Enemy EP <input id="enemy-ep" type="number" min="1" value="20"></label>
-        <label>Enemy CS Modifier <input id="enemy-cs-mod" type="number" value="0"></label>
-        <label>Allow Evade After Rounds <input id="evade-after" type="number" min="0" value="0"></label>
-      </div>
-      <div class="grid two checks">
-        <label><input id="enemy-psychic-attack" type="checkbox"> Enemy uses Mindblast</label>
-        <label><input id="enemy-psychic-immune" type="checkbox"> Enemy is psychic immune</label>
-        <label><input id="enemy-undead" type="checkbox"> Enemy is undead</label>
-        <label><input id="using-shield" type="checkbox"> Lone Wolf uses shield one-handed</label>
-        <label><input id="wearing-silver-helm" type="checkbox"> Silver Helm bonus active</label>
-        <label><input id="wearing-chainmail" type="checkbox"> Chainmail max EP bonus active</label>
-      </div>
-      <div class="grid two">
-        <label>Wielded Weapon
-          <select id="wielded-weapon"></select>
-        </label>
-        <label>Mental Discipline
-          <select id="mental-discipline"></select>
-        </label>
-      </div>
-      <div class="actions">
-        <button id="start-combat">Start Combat</button>
-        <button id="next-round" disabled>Next Round</button>
-        <button id="evade" disabled>Evade</button>
-      </div>
-      <div class="combat-status">
-        <p><strong>Status:</strong> <span id="combat-status">Idle</span></p>
-        <p><strong>Enemy EP:</strong> <span id="combat-enemy-ep">-</span></p>
-        <p><strong>Rounds:</strong> <span id="combat-rounds">0</span></p>
-      </div>
-      <ul id="combat-log" class="log"></ul>
-    </section>
-
-    <section class="card" id="save-card">
-      <h2>Save and Load</h2>
-      <div class="grid three">
-        <label>Book
-          <select id="save-book"></select>
-        </label>
-        <label>Page <input id="save-page" type="number" min="1" value="1"></label>
-        <label>Session Name <input id="save-session" placeholder="Morning Run"></label>
-      </div>
-      <div class="actions">
-        <button id="save-game">Save Game</button>
-        <button id="refresh-saves">Refresh Saves</button>
-      </div>
-      <ul id="save-list"></ul>
-    </section>
-  </main>
-
-  <div id="modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Resume Adventure</h3>
-      <p id="modal-text"></p>
-      <button id="close-modal">Close</button>
+  <!-- ===== WELCOME / NO CHARACTER ===== -->
+  <div id="welcome-screen" class="panel welcome-screen hidden">
+    <h2>Welcome, Kai Lord</h2>
+    <p>You have no active character. Begin a new adventure or load a saved game.</p>
+    <div class="welcome-btns">
+      <button class="btn btn-primary" onclick="openCharCreateModal()">New Character</button>
+      <button class="btn btn-secondary" onclick="openLoadModal()">Load Game</button>
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <!-- ======================================================= -->
+  <!-- TAB: CHARACTER SHEET                                      -->
+  <!-- ======================================================= -->
+  <div id="tab-sheet" class="tab-page active">
+    <div class="panel" id="char-panel">
+      <div class="char-header">
+        <h2>Character</h2>
+        <span class="rank-badge" id="rank-badge">—</span>
+      </div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <label>Name</label>
+        <input type="text" id="char-name" placeholder="Lone Wolf" oninput="charNameChanged()" />
+      </div>
+      <div class="form-row">
+        <label>Current Book</label>
+        <select id="char-book" onchange="charBookChanged()">
+          <option value="">— select book —</option>
+        </select>
+      </div>
+    </div>
 
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <div class="panel">
+      <h2>Combat Skill</h2>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar-label">
+          <span>Current CS</span>
+          <span id="cs-current-label">0</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill cs" id="cs-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-control">
+            <label>Max CS</label>
+            <button class="stat-btn minus" onclick="adjustStat('cs_max',-1)">−</button>
+            <span class="stat-val" id="cs-max-val">0</span>
+            <button class="stat-btn plus" onclick="adjustStat('cs_max',1)">+</button>
+          </div>
+          <div class="stat-control">
+            <label>Current CS</label>
+            <button class="stat-btn minus" onclick="adjustStat('cs_current',-1)">−</button>
+            <span class="stat-val" id="cs-current-val">0</span>
+            <button class="stat-btn plus" onclick="adjustStat('cs_current',1)">+</button>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective CS (with Lore Circle bonuses)</p>
+          <p style="font-size:1.4rem;font-weight:bold;color:var(--blue)" id="eff-cs-val">0</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Endurance Points</h2>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar-label">
+          <span>Current EP</span>
+          <span id="ep-current-label">0</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill ep" id="ep-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-control">
+            <label>Max EP</label>
+            <button class="stat-btn minus" onclick="adjustStat('ep_max',-1)">−</button>
+            <span class="stat-val" id="ep-max-val">0</span>
+            <button class="stat-btn plus" onclick="adjustStat('ep_max',1)">+</button>
+          </div>
+          <div class="stat-control">
+            <label>Current EP</label>
+            <button class="stat-btn minus" onclick="adjustStat('ep_current',-1)">−</button>
+            <span class="stat-val" id="ep-current-val">0</span>
+            <button class="stat-btn plus" onclick="adjustStat('ep_current',1)">+</button>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective Max EP (with Lore Circle bonuses)</p>
+          <p style="font-size:1.4rem;font-weight:bold;color:var(--green)" id="eff-ep-val">0</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="lore-circles-panel">
+      <h2>Magnakai Lore Circles</h2>
+      <div id="lore-circles-display"><p style="color:#666;font-size:0.85rem;">No Magnakai disciplines learned yet.</p></div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- TAB: SKILLS                                               -->
+  <!-- ======================================================= -->
+  <div id="tab-skills" class="tab-page">
+    <div class="panel" id="kai-skills-panel">
+      <h2>Kai Disciplines</h2>
+      <div id="kai-skills-list"></div>
+    </div>
+    <div class="panel" id="magnakai-skills-panel" class="hidden">
+      <h2>Magnakai Disciplines</h2>
+      <div id="magnakai-skills-list"></div>
+    </div>
+    <div class="panel" id="gm-skills-panel" class="hidden">
+      <h2>Grand Master Disciplines</h2>
+      <div id="gm-skills-list"></div>
+    </div>
+    <div class="panel" id="no-skills-panel">
+      <h2>New Order Disciplines</h2>
+      <div id="no-skills-list"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- TAB: INVENTORY                                            -->
+  <!-- ======================================================= -->
+  <div id="tab-inventory" class="tab-page">
+
+    <div class="panel">
+      <h2>Gold Crowns</h2>
+      <div class="gold-display">
+        <span id="gold-val">0</span>
+        <small>/ 50 max</small>
+      </div>
+      <div class="stat-control">
+        <label>Adjust Gold</label>
+        <button class="stat-btn minus" onclick="adjustGold(-1)">−</button>
+        <span class="stat-val" id="gold-adj">1</span>
+        <button class="stat-btn plus" onclick="adjustGoldStep(1)">+</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-danger btn-sm" onclick="changeGold(-parseInt(document.getElementById('gold-adj').textContent))">Spend</button>
+        <button class="btn btn-success btn-sm" onclick="changeGold(parseInt(document.getElementById('gold-adj').textContent))">Gain</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Weapons <span class="inv-count" id="weapons-count">(0/2)</span></h2>
+      <div id="weapons-list"></div>
+      <div class="inv-add-row">
+        <input type="text" id="weapon-input" placeholder="Weapon name…" />
+        <button class="btn btn-primary btn-sm" onclick="addWeapon()">Add</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Backpack Items <span class="inv-count" id="backpack-count">(0/8)</span></h2>
+      <div id="backpack-list"></div>
+      <div class="inv-add-row">
+        <input type="text" id="backpack-input" placeholder="Item name…" />
+        <button class="btn btn-primary btn-sm" onclick="addBackpackItem()">Add</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Special Items <span class="inv-count" id="special-count">(0/12)</span></h2>
+      <div id="special-list"></div>
+      <div class="inv-add-row">
+        <input type="text" id="special-input" placeholder="Special item name…" />
+        <button class="btn btn-primary btn-sm" onclick="addSpecialItem()">Add</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Quivers</h2>
+      <div id="quivers-list"></div>
+      <div class="inv-add-row">
+        <button class="btn btn-primary btn-sm" onclick="addQuiver()">Add Quiver (6 arrows)</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Meals</h2>
+      <div class="stat-control">
+        <label>Meals carried</label>
+        <button class="stat-btn minus" onclick="adjustMeals(-1)">−</button>
+        <span class="stat-val" id="meals-val">0</span>
+        <button class="stat-btn plus" onclick="adjustMeals(1)">+</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- TAB: COMBAT                                               -->
+  <!-- ======================================================= -->
+  <div id="tab-combat" class="tab-page">
+    <div class="panel">
+      <h2>Combat Setup</h2>
+      <div class="two-col">
+        <div class="form-row">
+          <label>Lone Wolf CS (effective)</label>
+          <input type="number" id="combat-lw-cs" value="0" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Lone Wolf EP (current)</label>
+          <input type="number" id="combat-lw-ep" value="0" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Enemy CS</label>
+          <input type="number" id="combat-enemy-cs" value="0" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Enemy EP</label>
+          <input type="number" id="combat-enemy-ep" value="0" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Weapon in hand</label>
+        <select id="combat-weapon">
+          <option value="none">No weapon (−4 CS)</option>
+          <option value="normal">Standard weapon (no bonus)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Skill discipline modifier</label>
+        <select id="combat-discipline-bonus" onchange="updateCombatRatio()">
+          <option value="0">None</option>
+        </select>
+      </div>
+      <div class="two-col">
+        <div class="combat-modifier">
+          <label>Shield (+2 CS, one-handed)</label>
+          <input type="checkbox" id="combat-shield" onchange="updateCombatRatio()" />
+        </div>
+        <div class="combat-modifier">
+          <label>Sommerswerd (+8 CS)</label>
+          <input type="checkbox" id="combat-sommerswerd" onchange="updateCombatRatio()" />
+        </div>
+        <div class="combat-modifier">
+          <label>Enemy vs Undead (×2 dmg)</label>
+          <input type="checkbox" id="combat-undead" />
+        </div>
+        <div class="combat-modifier">
+          <label>Enemy has Mindblast</label>
+          <input type="checkbox" id="combat-enemy-mindblast" />
+        </div>
+      </div>
+
+      <div id="combat-ratio-display" style="text-align:center;margin:12px 0;">
+        <p style="color:#888;font-size:0.85rem;">Calculated Combat Ratio</p>
+        <p style="font-size:2rem;font-weight:bold;color:var(--gold)" id="combat-ratio-val">—</p>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="initCombat()">Start Combat</button>
+        <button class="btn btn-secondary" onclick="resetCombat()">Reset</button>
+      </div>
+    </div>
+
+    <div class="panel" id="combat-active-panel" style="display:none;">
+      <h2>Combat in Progress</h2>
+      <div class="two-col" style="margin-bottom:12px;">
+        <div>
+          <p style="color:#aaa;font-size:0.8rem;">Lone Wolf EP</p>
+          <p style="font-size:1.8rem;font-weight:bold;color:var(--green)" id="live-lw-ep">—</p>
+        </div>
+        <div>
+          <p style="color:#aaa;font-size:0.8rem;">Enemy EP</p>
+          <p style="font-size:1.8rem;font-weight:bold;color:var(--red)" id="live-enemy-ep">—</p>
+        </div>
+      </div>
+      <div class="combat-log" id="combat-log"></div>
+      <div id="combat-controls" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="doCombatRound()">Roll Combat Round</button>
+        <button class="btn btn-secondary" onclick="evadeCombat()">Evade</button>
+        <button class="btn btn-danger btn-sm" onclick="endCombat()">End Combat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- TAB: NOTES                                                -->
+  <!-- ======================================================= -->
+  <div id="tab-notes" class="tab-page">
+    <div class="panel">
+      <h2>Add Note</h2>
+      <div class="form-row">
+        <label>Book Reference</label>
+        <select id="note-book"></select>
+      </div>
+      <div class="form-row">
+        <label>Page / Section</label>
+        <input type="text" id="note-page" placeholder="e.g. 247" />
+      </div>
+      <div class="form-row">
+        <label>Note</label>
+        <textarea id="note-text" rows="3" placeholder="Write your note here…"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="addNote()">Add Note</button>
+    </div>
+    <div class="panel">
+      <h2>Notes</h2>
+      <div id="notes-list"><p style="color:#666;font-size:0.85rem;">No notes yet.</p></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ===================================================== -->
+<!-- MODAL: CHARACTER CREATION                              -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-char-create">
+  <div class="modal">
+    <h2>Create New Character</h2>
+
+    <!-- Step 1: Core Attributes -->
+    <div id="step1">
+      <div class="form-row">
+        <label>Character Name</label>
+        <input type="text" id="new-char-name" placeholder="Lone Wolf" />
+      </div>
+      <div class="form-row">
+        <label>Starting Book</label>
+        <select id="new-char-book" onchange="onBookChange()">
+          <option value="">— select book —</option>
+        </select>
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1">
+          <label>Combat Skill (CS)</label>
+          <p class="hint">Roll: add 10 to a random number (0–9)</p>
+        </div>
+        <span class="rolled-val" id="new-cs-val">—</span>
+        <button class="btn btn-secondary btn-sm" onclick="rollCS()">Roll</button>
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1">
+          <label>Endurance Points (EP)</label>
+          <p class="hint">Roll: add 20 to a random number (0–9)</p>
+        </div>
+        <span class="rolled-val" id="new-ep-val">—</span>
+        <button class="btn btn-secondary btn-sm" onclick="rollEP()">Roll</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Disciplines -->
+    <div id="step2" class="hidden">
+      <h3 id="disc-step-title" style="margin-bottom:10px;">Select Starting Disciplines</h3>
+      <p id="disc-count-hint" style="font-size:0.82rem;color:#aaa;margin-bottom:10px;"></p>
+      <div class="disc-grid" id="disc-selector"></div>
+    </div>
+
+    <!-- Step 3: Equipment -->
+    <div id="step3" class="hidden">
+      <h3 style="margin-bottom:10px;" id="equip-step-title">Starting Equipment</h3>
+      <div id="equip-selector"></div>
+    </div>
+
+    <!-- Step 4: Gold -->
+    <div id="step4" class="hidden">
+      <h3 style="margin-bottom:10px;">Starting Gold</h3>
+      <div class="form-row" style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1">
+          <p class="hint" id="gold-roll-hint"></p>
+        </div>
+        <span class="rolled-val" id="new-gold-val">—</span>
+        <button class="btn btn-secondary btn-sm" onclick="rollGold()">Roll</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="create-prev-btn" onclick="createPrev()" style="display:none;">Back</button>
+      <button class="btn btn-primary" id="create-next-btn" onclick="createNext()">Next</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-char-create')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- MODAL: SAVE                                            -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-save">
+  <div class="modal">
+    <h2>Save Game</h2>
+    <div class="form-row">
+      <label>Session Name</label>
+      <input type="text" id="save-session-name" placeholder="e.g. Before the bridge" />
+    </div>
+    <div class="form-row">
+      <label>Page / Section Number</label>
+      <input type="number" id="save-page" placeholder="e.g. 157" min="1" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="doSave()">Save</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-save')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- MODAL: LOAD                                            -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-load">
+  <div class="modal">
+    <h2>Load Game</h2>
+    <div id="saves-list"><p style="color:#666;font-size:0.85rem;">No saved games found.</p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-load')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- MODAL: LOAD CONFIRM                                     -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-load-confirm">
+  <div class="modal">
+    <h2>Resume Adventure</h2>
+    <p id="load-confirm-text" style="margin-bottom:16px;color:#ccc;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmLoad()">Continue</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-load-confirm')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- TOAST CONTAINER                                        -->
+<!-- ===================================================== -->
+<div id="toast-container"></div>
+
+<script>
+// =============================================================================
+// STATE
+// =============================================================================
+let gameData = null; // loaded from API
+let pendingLoad = null; // save slot to load
+
+const DEFAULT_STATE = () => ({
+  name: "Lone Wolf",
+  book_number: null,
+  cs_max: 0,
+  cs_current: 0,
+  ep_max: 0,
+  ep_current: 0,
+  gold: 0,
+  weapons: [],         // [{name}]
+  backpack: [],        // [{name}]
+  special_items: [],   // [{name}]
+  quivers: [],         // [{arrows: 6}]
+  meals: 0,
+  skills: [],          // list of skill names
+  notes: [],           // [{book_number, page, text, id}]
+  lore_cs_bonus: 0,
+  lore_ep_bonus: 0,
+  completed_circles: [],
+  gold_adj_step: 1,
+});
+
+let state = DEFAULT_STATE();
+
+// Character creation wizard state
+let ccState = {
+  step: 1,
+  name: "",
+  book: null,
+  cs: null,
+  ep: null,
+  disciplines: [],
+  equipment: [],
+  gold: null,
+};
+
+// Combat state
+let combatActive = false;
+let combatState = {
+  lw_ep: 0,
+  enemy_ep: 0,
+  ratio: 0,
+  round: 0,
+};
+
+// =============================================================================
+// INIT
+// =============================================================================
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadGameData();
+  populateBookSelects();
+  loadStateFromStorage();
+  renderAll();
+  setupTabs();
+  preFillCombatFromSheet();
+});
+
+async function loadGameData() {
+  const resp = await fetch("/api/game_data");
+  gameData = await resp.json();
+}
+
+function setupTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
+      document.getElementById("tab-" + tab).classList.add("active");
+      if (tab === "combat") preFillCombatFromSheet();
+    });
+  });
+}
+
+function populateBookSelects() {
+  const books = gameData.books;
+  const selects = ["char-book", "new-char-book", "note-book"];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    if (id !== "note-book") sel.innerHTML = '<option value="">— select book —</option>';
+    else sel.innerHTML = '<option value="">— book reference —</option>';
+    books.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = b.book_number;
+      opt.textContent = `${b.book_number}. ${b.book_name}`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// =============================================================================
+// PERSISTENCE
+// =============================================================================
+function saveStateToStorage() {
+  localStorage.setItem("lw_state", JSON.stringify(state));
+}
+
+function loadStateFromStorage() {
+  const raw = localStorage.getItem("lw_state");
+  if (raw) {
+    try {
+      const saved = JSON.parse(raw);
+      state = Object.assign(DEFAULT_STATE(), saved);
+    } catch(e) { state = DEFAULT_STATE(); }
+  }
+}
+
+// =============================================================================
+// RENDER
+// =============================================================================
+function renderAll() {
+  renderCharSheet();
+  renderSkills();
+  renderInventory();
+  renderNotes();
+  updateLoreCircles();
+}
+
+function renderCharSheet() {
+  const hasChar = state.book_number !== null;
+  document.getElementById("welcome-screen").classList.toggle("hidden", hasChar);
+
+  document.getElementById("char-name").value = state.name;
+  const bookSel = document.getElementById("char-book");
+  bookSel.value = state.book_number || "";
+
+  document.getElementById("cs-max-val").textContent = state.cs_max;
+  document.getElementById("cs-current-val").textContent = state.cs_current;
+  document.getElementById("ep-max-val").textContent = state.ep_max;
+  document.getElementById("ep-current-val").textContent = state.ep_current;
+
+  const effCS = state.cs_current + state.lore_cs_bonus;
+  const effEPMax = state.ep_max + state.lore_ep_bonus;
+  document.getElementById("eff-cs-val").textContent = effCS;
+  document.getElementById("eff-ep-val").textContent = effEPMax;
+
+  document.getElementById("cs-current-label").textContent = state.cs_current;
+  document.getElementById("ep-current-label").textContent = state.ep_current;
+
+  const csBarPct = state.cs_max > 0 ? Math.min(100, (state.cs_current / state.cs_max) * 100) : 0;
+  const epBarPct = state.ep_max > 0 ? Math.min(100, (state.ep_current / state.ep_max) * 100) : 0;
+  document.getElementById("cs-bar").style.width = csBarPct + "%";
+  document.getElementById("ep-bar").style.width = epBarPct + "%";
+
+  updateRankBadge();
+}
+
+function updateRankBadge() {
+  const badge = document.getElementById("rank-badge");
+  if (!gameData || !state.book_number) { badge.textContent = "—"; return; }
+  const book = gameData.books.find(b => b.book_number === state.book_number);
+  if (!book) { badge.textContent = "—"; return; }
+  const subseries = book.subseries;
+  const count = state.skills.length;
+  let rankList = [];
+  if (subseries === "Kai") rankList = gameData.kai_ranks.lone_wolf_ranks.kai_disciplines;
+  else if (subseries === "Magnakai") rankList = gameData.kai_ranks.lone_wolf_ranks.magnakai_disciplines;
+  else if (subseries === "Grand Master" || subseries === "New Order") rankList = gameData.kai_ranks.lone_wolf_ranks.grand_master_disciplines;
+  else rankList = [];
+
+  let rank = rankList.length > 0 ? rankList[0].rank : "—";
+  for (const entry of rankList) {
+    if (count >= entry.skills_learned) rank = entry.rank;
+  }
+  badge.textContent = rank;
+}
+
+function renderSkills() {
+  if (!gameData) return;
+  const book = gameData.books.find(b => b.book_number === state.book_number);
+  const subseries = book ? book.subseries : null;
+
+  renderSkillList("kai-skills-list", gameData.kai_disciplines);
+  renderSkillList("magnakai-skills-list", gameData.magnakai_disciplines);
+  renderSkillList("gm-skills-list", gameData.grand_master_disciplines);
+  renderSkillList("no-skills-list", gameData.new_order_disciplines);
+}
+
+function renderSkillList(containerId, disciplines) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  disciplines.forEach(d => {
+    const active = state.skills.includes(d.name);
+    const div = document.createElement("div");
+    div.className = "skill-item" + (active ? " active" : "");
+    div.innerHTML = `
+      <span>${d.name}</span>
+      ${d.combat_bonus ? `<span class="skill-bonus">${d.combat_bonus}</span>` : ""}
+      <button class="btn btn-sm ${active ? "btn-danger" : "btn-success"}"
+        onclick="toggleSkill('${d.name}')">${active ? "Remove" : "Add"}</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function renderInventory() {
+  renderWeapons();
+  renderBackpack();
+  renderSpecialItems();
+  renderQuivers();
+  document.getElementById("gold-val").textContent = state.gold;
+  document.getElementById("meals-val").textContent = state.meals;
+}
+
+function renderWeapons() {
+  const list = document.getElementById("weapons-list");
+  list.innerHTML = "";
+  state.weapons.forEach((w, i) => {
+    list.appendChild(makeInvItem(w.name, "Weapon", () => removeWeapon(i)));
+  });
+  document.getElementById("weapons-count").textContent = `(${state.weapons.length}/2)`;
+}
+
+function renderBackpack() {
+  const list = document.getElementById("backpack-list");
+  list.innerHTML = "";
+  state.backpack.forEach((item, i) => {
+    list.appendChild(makeInvItem(item.name, "Backpack", () => removeBackpackItem(i)));
+  });
+  document.getElementById("backpack-count").textContent = `(${state.backpack.length}/8)`;
+}
+
+function renderSpecialItems() {
+  const list = document.getElementById("special-list");
+  list.innerHTML = "";
+  state.special_items.forEach((item, i) => {
+    list.appendChild(makeInvItem(item.name, "Special", () => removeSpecialItem(i)));
+  });
+  document.getElementById("special-count").textContent = `(${state.special_items.length}/12)`;
+}
+
+function renderQuivers() {
+  const list = document.getElementById("quivers-list");
+  list.innerHTML = "";
+  state.quivers.forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "inv-item";
+    div.innerHTML = `
+      <span>Quiver</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="stat-btn minus" style="width:24px;height:24px;font-size:0.8rem;" onclick="adjustArrows(${i},-1)">−</button>
+        <span class="stat-val" style="font-size:0.9rem;">${q.arrows} arrows</span>
+        <button class="stat-btn plus" style="width:24px;height:24px;font-size:0.8rem;" onclick="adjustArrows(${i},1)">+</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="removeQuiver(${i})">Remove</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function makeInvItem(name, tag, onRemove) {
+  const div = document.createElement("div");
+  div.className = "inv-item";
+  div.innerHTML = `<span>${name}</span><span class="item-tag">${tag}</span>`;
+  const btn = document.createElement("button");
+  btn.className = "btn btn-danger btn-sm";
+  btn.textContent = "Remove";
+  btn.onclick = onRemove;
+  div.appendChild(btn);
+  return div;
+}
+
+function renderNotes() {
+  const list = document.getElementById("notes-list");
+  if (state.notes.length === 0) {
+    list.innerHTML = '<p style="color:#666;font-size:0.85rem;">No notes yet.</p>';
+    return;
+  }
+  list.innerHTML = "";
+  state.notes.slice().reverse().forEach(note => {
+    const book = gameData ? gameData.books.find(b => b.book_number === note.book_number) : null;
+    const bookName = book ? `${book.book_number}. ${book.book_name}` : "Unknown book";
+    const div = document.createElement("div");
+    div.className = "note-item";
+    div.innerHTML = `
+      <div class="note-meta">${bookName}${note.page ? " — p." + note.page : ""}</div>
+      <div class="note-text">${escapeHtml(note.text)}</div>
+      <div class="note-footer"><button class="btn btn-danger btn-sm" onclick="removeNote('${note.id}')">Delete</button></div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function updateLoreCircles() {
+  if (!gameData) return;
+  const resp = await fetch("/api/lore_circles", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({skills: state.skills})
+  });
+  const data = await resp.json();
+  state.lore_cs_bonus = data.cs_bonus;
+  state.lore_ep_bonus = data.ep_bonus;
+  state.completed_circles = data.completed_circles;
+
+  const panel = document.getElementById("lore-circles-display");
+  if (data.completed_circles.length === 0) {
+    panel.innerHTML = '<p style="color:#666;font-size:0.85rem;">No Magnakai disciplines learned yet, or no circles completed.</p>';
+  } else {
+    let html = "";
+    data.completed_circles.forEach(name => {
+      const circle = gameData.magnakai_lore_circles.find(c => c.name === name);
+      html += `<span class="circle-badge">${name} (+${circle.cs_bonus}CS / +${circle.ep_bonus}EP)</span>`;
+    });
+    if (data.cs_bonus > 0 || data.ep_bonus > 0) {
+      html += `<p style="margin-top:8px;font-size:0.85rem;color:#aaa;">Total bonus: <strong style="color:var(--blue)">+${data.cs_bonus} CS</strong>, <strong style="color:var(--green)">+${data.ep_bonus} EP</strong></p>`;
+    }
+    panel.innerHTML = html;
+  }
+
+  renderCharSheet();
+  saveStateToStorage();
+}
+
+// =============================================================================
+// STAT ADJUSTMENTS
+// =============================================================================
+function adjustStat(stat, delta) {
+  switch(stat) {
+    case "cs_max":
+      state.cs_max = Math.max(0, state.cs_max + delta);
+      state.cs_current = Math.min(state.cs_current, state.cs_max);
+      break;
+    case "cs_current":
+      state.cs_current = Math.max(0, Math.min(state.cs_max, state.cs_current + delta));
+      break;
+    case "ep_max":
+      state.ep_max = Math.max(0, state.ep_max + delta);
+      state.ep_current = Math.min(state.ep_current, state.ep_max);
+      break;
+    case "ep_current":
+      state.ep_current = Math.max(0, Math.min(state.ep_max, state.ep_current + delta));
+      break;
+  }
+  renderCharSheet();
+  saveStateToStorage();
+}
+
+function adjustGold(delta) { /* unused directly, use changeGold */ }
+function adjustGoldStep(delta) {
+  state.gold_adj_step = Math.max(1, (state.gold_adj_step || 1) + delta);
+  document.getElementById("gold-adj").textContent = state.gold_adj_step;
+}
+function changeGold(delta) {
+  state.gold = Math.max(0, Math.min(50, state.gold + delta));
+  renderInventory();
+  saveStateToStorage();
+}
+
+function adjustMeals(delta) {
+  state.meals = Math.max(0, state.meals + delta);
+  document.getElementById("meals-val").textContent = state.meals;
+  saveStateToStorage();
+}
+
+function adjustArrows(idx, delta) {
+  state.quivers[idx].arrows = Math.max(0, Math.min(6, state.quivers[idx].arrows + delta));
+  renderQuivers();
+  saveStateToStorage();
+}
+
+// =============================================================================
+// INVENTORY
+// =============================================================================
+function addWeapon() {
+  const input = document.getElementById("weapon-input");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.weapons.length >= 2) { toast("You can only carry 2 weapons.", "error"); return; }
+  state.weapons.push({name});
+  input.value = "";
+  renderWeapons();
+  saveStateToStorage();
+}
+
+function removeWeapon(idx) {
+  state.weapons.splice(idx, 1);
+  renderWeapons();
+  saveStateToStorage();
+}
+
+function addBackpackItem() {
+  const input = document.getElementById("backpack-input");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.backpack.length >= 8) { toast("Backpack is full (max 8).", "error"); return; }
+  state.backpack.push({name});
+  input.value = "";
+  renderBackpack();
+  saveStateToStorage();
+}
+
+function removeBackpackItem(idx) {
+  state.backpack.splice(idx, 1);
+  renderBackpack();
+  saveStateToStorage();
+}
+
+function addSpecialItem() {
+  const input = document.getElementById("special-input");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.special_items.length >= 12) { toast("Special Items limit reached (max 12).", "error"); return; }
+  state.special_items.push({name});
+  input.value = "";
+  renderSpecialItems();
+  saveStateToStorage();
+}
+
+function removeSpecialItem(idx) {
+  state.special_items.splice(idx, 1);
+  renderSpecialItems();
+  saveStateToStorage();
+}
+
+function addQuiver() {
+  state.quivers.push({arrows: 6});
+  renderQuivers();
+  saveStateToStorage();
+}
+
+function removeQuiver(idx) {
+  state.quivers.splice(idx, 1);
+  renderQuivers();
+  saveStateToStorage();
+}
+
+// =============================================================================
+// CHARACTER NAME / BOOK
+// =============================================================================
+function charNameChanged() {
+  state.name = document.getElementById("char-name").value;
+  saveStateToStorage();
+}
+
+function charBookChanged() {
+  const val = document.getElementById("char-book").value;
+  state.book_number = val ? parseInt(val) : null;
+  renderCharSheet();
+  renderSkills();
+  saveStateToStorage();
+}
+
+// =============================================================================
+// SKILLS
+// =============================================================================
+function toggleSkill(name) {
+  const idx = state.skills.indexOf(name);
+  if (idx === -1) {
+    state.skills.push(name);
+  } else {
+    state.skills.splice(idx, 1);
+  }
+  renderSkills();
+  updateLoreCircles();
+}
+
+// =============================================================================
+// NOTES
+// =============================================================================
+function addNote() {
+  const bookSel = document.getElementById("note-book");
+  const pageInput = document.getElementById("note-page");
+  const textArea = document.getElementById("note-text");
+  const text = textArea.value.trim();
+  if (!text) { toast("Note text is required.", "error"); return; }
+  const note = {
+    id: Date.now().toString(),
+    book_number: bookSel.value ? parseInt(bookSel.value) : null,
+    page: pageInput.value.trim(),
+    text,
+  };
+  state.notes.push(note);
+  textArea.value = "";
+  pageInput.value = "";
+  renderNotes();
+  saveStateToStorage();
+  toast("Note added.", "success");
+}
+
+function removeNote(id) {
+  state.notes = state.notes.filter(n => n.id !== id);
+  renderNotes();
+  saveStateToStorage();
+}
+
+// =============================================================================
+// COMBAT
+// =============================================================================
+function preFillCombatFromSheet() {
+  document.getElementById("combat-lw-ep").value = state.ep_current;
+  const effCS = state.cs_current + state.lore_cs_bonus;
+  document.getElementById("combat-lw-cs").value = effCS;
+  updateCombatWeaponSelect();
+  updateCombatDisciplineSelect();
+  updateCombatRatio();
+}
+
+function updateCombatWeaponSelect() {
+  const sel = document.getElementById("combat-weapon");
+  // rebuild
+  sel.innerHTML = '<option value="none">No weapon (−4 CS)</option><option value="normal">Standard weapon (no bonus)</option>';
+  state.weapons.forEach(w => {
+    const opt = document.createElement("option");
+    opt.value = w.name;
+    opt.textContent = w.name;
+    sel.appendChild(opt);
+  });
+  sel.onchange = updateCombatRatio;
+}
+
+function updateCombatDisciplineSelect() {
+  const sel = document.getElementById("combat-discipline-bonus");
+  sel.innerHTML = '<option value="0">None</option>';
+  const disciplines = [
+    {name: "Mindblast", bonus: 2, label: "Mindblast (+2 CS)"},
+    {name: "Psi-surge", bonus: 4, label: "Psi-surge (+4 CS, −2 EP/round)"},
+    {name: "Kai-surge", bonus: 8, label: "Kai-surge (+8 CS, −1 EP/round)"},
+  ];
+  disciplines.forEach(d => {
+    if (state.skills.includes(d.name)) {
+      const opt = document.createElement("option");
+      opt.value = d.bonus;
+      opt.dataset.name = d.name;
+      opt.textContent = d.label;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+function updateCombatRatio() {
+  const lwCS = parseInt(document.getElementById("combat-lw-cs").value) || 0;
+  const enemyCS = parseInt(document.getElementById("combat-enemy-cs").value) || 0;
+
+  let mod = 0;
+  const weaponVal = document.getElementById("combat-weapon").value;
+  if (weaponVal === "none") mod -= 4;
+
+  const shieldChecked = document.getElementById("combat-shield").checked;
+  if (shieldChecked) mod += 2;
+
+  const sommerswerdChecked = document.getElementById("combat-sommerswerd").checked;
+  if (sommerswerdChecked) mod += 8;
+
+  const discBonus = parseInt(document.getElementById("combat-discipline-bonus").value) || 0;
+  mod += discBonus;
+
+  const ratio = (lwCS + mod) - enemyCS;
+  document.getElementById("combat-ratio-val").textContent = (ratio >= 0 ? "+" : "") + ratio;
+  return ratio;
+}
+
+function initCombat() {
+  const lw_ep = parseInt(document.getElementById("combat-lw-ep").value) || 0;
+  const enemy_ep = parseInt(document.getElementById("combat-enemy-ep").value) || 0;
+  if (enemy_ep <= 0) { toast("Enemy EP must be > 0.", "error"); return; }
+
+  combatActive = true;
+  combatState = {
+    lw_ep,
+    enemy_ep,
+    ratio: updateCombatRatio(),
+    round: 0,
+  };
+
+  document.getElementById("live-lw-ep").textContent = lw_ep;
+  document.getElementById("live-enemy-ep").textContent = enemy_ep;
+  document.getElementById("combat-log").innerHTML = "";
+  document.getElementById("combat-active-panel").style.display = "block";
+  document.getElementById("combat-controls").style.display = "flex";
+  logCombat(`Combat started! LW CS: ${document.getElementById("combat-lw-cs").value}, Enemy CS: ${document.getElementById("combat-enemy-cs").value}, Ratio: ${combatState.ratio}`);
+}
+
+async function doCombatRound() {
+  if (!combatActive) return;
+  combatState.round++;
+
+  const discSel = document.getElementById("combat-discipline-bonus");
+  const discName = discSel.selectedOptions[0]?.dataset?.name || "";
+  const use_psi_surge = discName === "Psi-surge";
+  const use_kai_surge = discName === "Kai-surge";
+  const enemy_mindblast = document.getElementById("combat-enemy-mindblast").checked;
+  const has_mindshield = state.skills.includes("Mindshield") || state.skills.includes("Psi-screen") || state.skills.includes("Kai-screen");
+  const sommerswerd_vs_undead = document.getElementById("combat-sommerswerd").checked && document.getElementById("combat-undead").checked;
+
+  const body = {
+    lw_ep: combatState.lw_ep,
+    enemy_ep: combatState.enemy_ep,
+    ratio: combatState.ratio,
+    use_psi_surge,
+    use_kai_surge,
+    enemy_mindblast,
+    has_mindshield,
+    sommerswerd_vs_undead,
+  };
+
+  const resp = await fetch("/api/combat_round", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  const result = await resp.json();
+
+  combatState.lw_ep = result.lw_ep;
+  combatState.enemy_ep = result.enemy_ep;
+
+  document.getElementById("live-lw-ep").textContent = result.lw_ep;
+  document.getElementById("live-enemy-ep").textContent = result.enemy_ep;
+
+  const log = document.getElementById("combat-log");
+  log.innerHTML += `<p class="round-sep">— Round ${combatState.round} (Roll: ${result.roll}) —</p>`;
+  log.innerHTML += `<p>Enemy loses: <strong>${result.e_loss} EP</strong> &nbsp;|&nbsp; Lone Wolf loses: <strong>${result.lw_loss} EP</strong></p>`;
+  log.innerHTML += `<p>LW: ${result.lw_ep} EP &nbsp;|&nbsp; Enemy: ${result.enemy_ep} EP</p>`;
+  log.scrollTop = log.scrollHeight;
+
+  if (result.enemy_dead) {
+    log.innerHTML += `<p class="win">VICTORY! The enemy is defeated.</p>`;
+    document.getElementById("combat-controls").style.display = "none";
+    combatActive = false;
+    state.ep_current = Math.max(0, Math.min(state.ep_max, result.lw_ep));
+    renderCharSheet();
+    saveStateToStorage();
+    toast("Victory! EP updated.", "success");
+  } else if (result.lw_dead) {
+    log.innerHTML += `<p class="lose">DEFEAT! Lone Wolf has fallen. The adventure ends.</p>`;
+    document.getElementById("combat-controls").style.display = "none";
+    combatActive = false;
+    state.ep_current = 0;
+    renderCharSheet();
+    saveStateToStorage();
+    toast("Defeated. EP set to 0.", "error");
+  }
+}
+
+function evadeCombat() {
+  combatActive = false;
+  logCombat("Lone Wolf evades combat.");
+  document.getElementById("combat-controls").style.display = "none";
+  state.ep_current = Math.max(0, combatState.lw_ep);
+  renderCharSheet();
+  saveStateToStorage();
+  toast("Evaded. EP updated.", "info");
+}
+
+function resetCombat() {
+  combatActive = false;
+  document.getElementById("combat-active-panel").style.display = "none";
+  document.getElementById("combat-log").innerHTML = "";
+  preFillCombatFromSheet();
+}
+
+function endCombat() {
+  combatActive = false;
+  document.getElementById("combat-active-panel").style.display = "none";
+  state.ep_current = Math.max(0, combatState.lw_ep);
+  renderCharSheet();
+  saveStateToStorage();
+}
+
+function logCombat(msg) {
+  const log = document.getElementById("combat-log");
+  log.innerHTML += `<p>${msg}</p>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+// =============================================================================
+// SAVE / LOAD
+// =============================================================================
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem("lw_saves") || "[]"); } catch(e) { return []; }
+}
+function setSaves(saves) { localStorage.setItem("lw_saves", JSON.stringify(saves)); }
+
+function openSaveModal() {
+  if (!state.book_number) { toast("No character to save.", "error"); return; }
+  document.getElementById("save-session-name").value = "";
+  document.getElementById("save-page").value = "";
+  openModal("modal-save");
+}
+
+function doSave() {
+  const session = document.getElementById("save-session-name").value.trim();
+  const page = document.getElementById("save-page").value.trim();
+  if (!session) { toast("Enter a session name.", "error"); return; }
+  if (!page) { toast("Enter a page/section number.", "error"); return; }
+
+  const book = gameData.books.find(b => b.book_number === state.book_number);
+  const bookName = book ? book.book_name : "Unknown";
+  const timestamp = new Date().toISOString();
+  const saveEntry = {
+    id: Date.now().toString(),
+    label: `${bookName} — p.${page} — "${session}"`,
+    session,
+    page,
+    book_name: bookName,
+    timestamp,
+    state: JSON.parse(JSON.stringify(state)),
+  };
+  const saves = getSaves();
+  saves.push(saveEntry);
+  setSaves(saves);
+  closeModal("modal-save");
+  toast("Game saved!", "success");
+}
+
+function openLoadModal() {
+  const saves = getSaves();
+  const list = document.getElementById("saves-list");
+  if (saves.length === 0) {
+    list.innerHTML = '<p style="color:#666;font-size:0.85rem;">No saved games found.</p>';
+  } else {
+    list.innerHTML = "";
+    saves.slice().reverse().forEach(save => {
+      const div = document.createElement("div");
+      div.className = "save-item";
+      div.innerHTML = `
+        <div style="flex:1">
+          <span>${save.label}</span><br/>
+          <small>${new Date(save.timestamp).toLocaleString()}</small>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="selectLoad('${save.id}')">Load</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSave('${save.id}')">Delete</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+  openModal("modal-load");
+}
+
+function selectLoad(id) {
+  const saves = getSaves();
+  const save = saves.find(s => s.id === id);
+  if (!save) return;
+  pendingLoad = save;
+  document.getElementById("load-confirm-text").textContent =
+    `Resume "${save.session}" in ${save.book_name}, page ${save.page}. Continue to that page to resume.`;
+  closeModal("modal-load");
+  openModal("modal-load-confirm");
+}
+
+function confirmLoad() {
+  if (!pendingLoad) return;
+  state = Object.assign(DEFAULT_STATE(), pendingLoad.state);
+  saveStateToStorage();
+  closeModal("modal-load-confirm");
+  renderAll();
+  toast(`Loaded: ${pendingLoad.label}`, "success");
+  pendingLoad = null;
+}
+
+function deleteSave(id) {
+  let saves = getSaves();
+  saves = saves.filter(s => s.id !== id);
+  setSaves(saves);
+  openLoadModal(); // refresh
+}
+
+// =============================================================================
+// CHARACTER CREATION WIZARD
+// =============================================================================
+function openCharCreateModal() {
+  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], equipment: [], gold: null };
+  document.getElementById("new-char-name").value = "";
+  document.getElementById("new-char-book").value = "";
+  document.getElementById("new-cs-val").textContent = "—";
+  document.getElementById("new-ep-val").textContent = "—";
+  showCreateStep(1);
+  openModal("modal-char-create");
+}
+
+function confirmNewGame() {
+  if (confirm("Start a new game? Your unsaved progress will be lost.")) {
+    state = DEFAULT_STATE();
+    saveStateToStorage();
+    renderAll();
+    openCharCreateModal();
+  }
+}
+
+function showCreateStep(step) {
+  ccState.step = step;
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById("step" + i).classList.toggle("hidden", i !== step);
+  }
+  const prevBtn = document.getElementById("create-prev-btn");
+  const nextBtn = document.getElementById("create-next-btn");
+  prevBtn.style.display = step > 1 ? "inline-block" : "none";
+
+  if (step === 4) {
+    nextBtn.textContent = "Create Character";
+  } else if (step === 3) {
+    const subseries = ccState.book?.subseries;
+    if (subseries === "Kai") {
+      nextBtn.textContent = "Next";
+    } else {
+      nextBtn.textContent = "Next";
+    }
+  } else {
+    nextBtn.textContent = "Next";
+  }
+
+  if (step === 2) buildDisciplineSelector();
+  if (step === 3) buildEquipmentSelector();
+  if (step === 4) buildGoldStep();
+}
+
+async function rollCS() {
+  const resp = await fetch("/api/roll_random");
+  const data = await resp.json();
+  ccState.cs = 10 + data.value;
+  document.getElementById("new-cs-val").textContent = ccState.cs;
+}
+
+async function rollEP() {
+  const resp = await fetch("/api/roll_random");
+  const data = await resp.json();
+  ccState.ep = 20 + data.value;
+  document.getElementById("new-ep-val").textContent = ccState.ep;
+}
+
+function onBookChange() {
+  const val = document.getElementById("new-char-book").value;
+  if (!val) { ccState.book = null; return; }
+  ccState.book = gameData.books.find(b => b.book_number === parseInt(val));
+}
+
+function createNext() {
+  const step = ccState.step;
+  if (step === 1) {
+    const name = document.getElementById("new-char-name").value.trim();
+    if (!name) { toast("Enter a character name.", "error"); return; }
+    if (!ccState.book) { toast("Select a starting book.", "error"); return; }
+    if (ccState.cs === null) { toast("Roll your Combat Skill.", "error"); return; }
+    if (ccState.ep === null) { toast("Roll your Endurance Points.", "error"); return; }
+    ccState.name = name;
+    showCreateStep(2);
+  } else if (step === 2) {
+    const required = getRequiredDisciplineCount();
+    if (ccState.disciplines.length !== required) {
+      toast(`Select exactly ${required} disciplines.`, "error"); return;
+    }
+    showCreateStep(3);
+  } else if (step === 3) {
+    const required = getRequiredEquipmentCount();
+    if (ccState.equipment.length !== required && ccState.book.subseries !== "Kai") {
+      toast(`Select exactly ${required} items.`, "error"); return;
+    }
+    showCreateStep(4);
+  } else if (step === 4) {
+    if (ccState.gold === null) { toast("Roll your starting gold.", "error"); return; }
+    finalizeCharacter();
+  }
+}
+
+function createPrev() {
+  showCreateStep(ccState.step - 1);
+}
+
+function getRequiredDisciplineCount() {
+  const sub = ccState.book?.subseries;
+  if (sub === "Kai") return 5;
+  if (sub === "Magnakai") return 3;
+  if (sub === "Grand Master" || sub === "New Order") return 4;
+  return 0;
+}
+
+function getRequiredEquipmentCount() {
+  if (ccState.book?.subseries === "Kai") return 2; // rolled randomly
+  return 5;
+}
+
+function buildDisciplineSelector() {
+  const sub = ccState.book?.subseries;
+  let disciplines = [];
+  const title = document.getElementById("disc-step-title");
+  const hint = document.getElementById("disc-count-hint");
+  const req = getRequiredDisciplineCount();
+  hint.textContent = `Select ${req} discipline${req > 1 ? "s" : ""}.`;
+
+  if (sub === "Kai") disciplines = gameData.kai_disciplines;
+  else if (sub === "Magnakai") disciplines = gameData.magnakai_disciplines;
+  else if (sub === "Grand Master") disciplines = gameData.grand_master_disciplines;
+  else if (sub === "New Order") disciplines = gameData.new_order_disciplines;
+
+  title.textContent = `Select Starting ${sub} Disciplines`;
+  ccState.disciplines = [];
+
+  const grid = document.getElementById("disc-selector");
+  grid.innerHTML = "";
+  disciplines.forEach(d => {
+    const div = document.createElement("div");
+    div.className = "disc-option";
+    div.id = "disc-opt-" + d.name.replace(/\s/g,"_");
+    div.innerHTML = `
+      <input type="checkbox" id="disc-cb-${d.name.replace(/\s/g,"_")}" onchange="toggleCCDiscipline('${d.name}')" />
+      <div class="disc-option-text">
+        <strong>${d.name}</strong>
+        <small>${d.combat_bonus || ""}</small>
+      </div>
+    `;
+    div.onclick = (e) => {
+      if (e.target.tagName !== "INPUT") {
+        const cb = div.querySelector("input[type=checkbox]");
+        cb.checked = !cb.checked;
+        toggleCCDiscipline(d.name);
+      }
+    };
+    grid.appendChild(div);
+  });
+}
+
+function toggleCCDiscipline(name) {
+  const req = getRequiredDisciplineCount();
+  const optId = "disc-opt-" + name.replace(/\s/g,"_");
+  const cbId  = "disc-cb-"  + name.replace(/\s/g,"_");
+  const cb = document.getElementById(cbId);
+  const opt = document.getElementById(optId);
+
+  if (cb.checked) {
+    if (ccState.disciplines.length >= req) {
+      cb.checked = false;
+      toast(`You can only select ${req} disciplines.`, "error");
+      return;
+    }
+    ccState.disciplines.push(name);
+    opt.classList.add("selected");
+  } else {
+    ccState.disciplines = ccState.disciplines.filter(d => d !== name);
+    opt.classList.remove("selected");
+  }
+  document.getElementById("disc-count-hint").textContent =
+    `${ccState.disciplines.length}/${req} selected.`;
+}
+
+async function buildEquipmentSelector() {
+  const sub = ccState.book?.subseries;
+  const container = document.getElementById("equip-selector");
+  container.innerHTML = "";
+  const title = document.getElementById("equip-step-title");
+  ccState.equipment = [];
+
+  if (sub === "Kai") {
+    title.textContent = "Starting Equipment (rolling 2 random items)";
+    const resp = await fetch("/api/roll_equipment");
+    const data = await resp.json();
+    ccState.equipment = data.items;
+    let html = "<p style='color:#aaa;font-size:0.88rem;margin-bottom:8px;'>You receive:</p>";
+    data.items.forEach(item => {
+      html += `<div class="inv-item"><span>${item.item}</span><span class="item-tag">${item.type}</span></div>`;
+    });
+    container.innerHTML = html;
+  } else {
+    const opts = sub === "Magnakai" ? gameData.magnakai_equipment_options : gameData.grand_master_equipment_options;
+    const req = 5;
+    title.textContent = `Starting Equipment — Select ${req} items`;
+
+    opts.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "equip-option";
+      div.id = "equip-opt-" + item.item.replace(/\s/g,"_");
+      div.innerHTML = `
+        <input type="checkbox" id="equip-cb-${item.item.replace(/\s/g,"_")}"
+          onchange="toggleCCEquip('${item.item}', '${item.type}')" />
+        <span>${item.item}</span>
+        <span class="item-tag">${item.type}</span>
+      `;
+      div.onclick = e => {
+        if (e.target.tagName !== "INPUT") {
+          const cb = div.querySelector("input");
+          cb.checked = !cb.checked;
+          toggleCCEquip(item.item, item.type);
+        }
+      };
+      container.appendChild(div);
+    });
+    const hint = document.createElement("p");
+    hint.id = "equip-hint";
+    hint.style.cssText = "font-size:0.8rem;color:#aaa;margin-top:8px;";
+    hint.textContent = `0/${req} selected.`;
+    container.appendChild(hint);
+  }
+}
+
+function toggleCCEquip(name, type) {
+  const req = 5;
+  const optId = "equip-opt-" + name.replace(/\s/g,"_");
+  const cbId  = "equip-cb-"  + name.replace(/\s/g,"_");
+  const cb  = document.getElementById(cbId);
+  const opt = document.getElementById(optId);
+
+  if (cb.checked) {
+    if (ccState.equipment.length >= req) {
+      cb.checked = false;
+      toast(`Select exactly ${req} items.`, "error"); return;
+    }
+    ccState.equipment.push({item: name, type});
+    opt.classList.add("selected");
+  } else {
+    ccState.equipment = ccState.equipment.filter(e => e.item !== name);
+    opt.classList.remove("selected");
+  }
+  const hint = document.getElementById("equip-hint");
+  if (hint) hint.textContent = `${ccState.equipment.length}/${req} selected.`;
+}
+
+function buildGoldStep() {
+  const sub = ccState.book?.subseries;
+  const hint = document.getElementById("gold-roll-hint");
+  if (sub === "Grand Master" || sub === "New Order") {
+    hint.textContent = "Roll 1–10, add 20.";
+  } else {
+    hint.textContent = "Roll 1–10, add 10.";
+  }
+  ccState.gold = null;
+  document.getElementById("new-gold-val").textContent = "—";
+}
+
+async function rollGold() {
+  const sub = ccState.book?.subseries;
+  const resp = await fetch("/api/roll_random");
+  const data = await resp.json();
+  const roll = data.value + 1; // 1-10
+  const base = (sub === "Grand Master" || sub === "New Order") ? 20 : 10;
+  ccState.gold = Math.min(50, base + roll);
+  document.getElementById("new-gold-val").textContent = ccState.gold;
+}
+
+function finalizeCharacter() {
+  state = DEFAULT_STATE();
+  state.name = ccState.name;
+  state.book_number = ccState.book.book_number;
+  state.cs_max = ccState.cs;
+  state.cs_current = ccState.cs;
+  state.ep_max = ccState.ep;
+  state.ep_current = ccState.ep;
+  state.gold = ccState.gold;
+  state.skills = [...ccState.disciplines];
+
+  ccState.equipment.forEach(item => {
+    if (item.type === "Weapon") {
+      if (state.weapons.length < 2) state.weapons.push({name: item.item});
+    } else if (item.type === "Backpack Item") {
+      if (item.item.includes("Meal") || item.item.includes("meal")) {
+        const count = parseInt(item.item) || 2;
+        state.meals += count;
+      } else {
+        if (state.backpack.length < 8) state.backpack.push({name: item.item});
+      }
+    } else if (item.type === "Special Item") {
+      if (item.item.toLowerCase().includes("quiver")) {
+        state.quivers.push({arrows: 6});
+      } else {
+        if (state.special_items.length < 12) state.special_items.push({name: item.item});
+      }
+    } else if (item.type === "Currency") {
+      const match = item.item.match(/(\d+)/);
+      if (match) state.gold = Math.min(50, state.gold + parseInt(match[1]));
+    }
+  });
+
+  saveStateToStorage();
+  closeModal("modal-char-create");
+  renderAll();
+  toast("Character created! Your adventure begins.", "success");
+}
+
+// =============================================================================
+// MODAL HELPERS
+// =============================================================================
+function openModal(id) {
+  document.getElementById(id).classList.add("active");
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove("active");
+}
+
+// Close on overlay click
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) overlay.classList.remove("active");
+  });
+});
+
+// =============================================================================
+// TOAST
+// =============================================================================
+function toast(msg, type = "info") {
+  const container = document.getElementById("toast-container");
+  const el = document.createElement("div");
+  el.className = "toast " + type;
+  el.textContent = msg;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// =============================================================================
+// UTILITIES
+// =============================================================================
+function escapeHtml(str) {
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+            .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+</script>
 </body>
 </html>
