@@ -781,14 +781,8 @@
       <div class="disc-grid" id="disc-selector"></div>
     </div>
 
-    <!-- Step 3: Equipment -->
+    <!-- Step 3: Gold -->
     <div id="step3" class="hidden">
-      <h3 style="margin-bottom:10px;" id="equip-step-title">Starting Equipment</h3>
-      <div id="equip-selector"></div>
-    </div>
-
-    <!-- Step 4: Gold -->
-    <div id="step4" class="hidden">
       <h3 style="margin-bottom:10px;">Starting Gold</h3>
       <div class="form-row" style="display:flex;align-items:center;gap:12px;">
         <div style="flex:1">
@@ -1629,7 +1623,7 @@ function deleteSave(id) {
 // CHARACTER CREATION WIZARD
 // =============================================================================
 function openCharCreateModal() {
-  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], equipment: [], gold: null };
+  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null };
   document.getElementById("new-char-name").value = "";
   document.getElementById("new-char-book").value = "";
   document.getElementById("new-cs-val").textContent = "—";
@@ -1649,29 +1643,21 @@ function confirmNewGame() {
 
 function showCreateStep(step) {
   ccState.step = step;
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 3; i++) {
     document.getElementById("step" + i).classList.toggle("hidden", i !== step);
   }
   const prevBtn = document.getElementById("create-prev-btn");
   const nextBtn = document.getElementById("create-next-btn");
   prevBtn.style.display = step > 1 ? "inline-block" : "none";
 
-  if (step === 4) {
+  if (step === 3) {
     nextBtn.textContent = "Create Character";
-  } else if (step === 3) {
-    const subseries = ccState.book?.subseries;
-    if (subseries === "Kai") {
-      nextBtn.textContent = "Next";
-    } else {
-      nextBtn.textContent = "Next";
-    }
   } else {
     nextBtn.textContent = "Next";
   }
 
   if (step === 2) buildDisciplineSelector();
-  if (step === 3) buildEquipmentSelector();
-  if (step === 4) buildGoldStep();
+  if (step === 3) buildGoldStep();
 }
 
 async function rollCS() {
@@ -1711,12 +1697,6 @@ function createNext() {
     }
     showCreateStep(3);
   } else if (step === 3) {
-    const required = getRequiredEquipmentCount();
-    if (ccState.equipment.length !== required && ccState.book.subseries !== "Kai") {
-      toast(`Select exactly ${required} items.`, "error"); return;
-    }
-    showCreateStep(4);
-  } else if (step === 4) {
     if (ccState.gold === null) { toast("Roll your starting gold.", "error"); return; }
     finalizeCharacter();
   }
@@ -1732,11 +1712,6 @@ function getRequiredDisciplineCount() {
   if (sub === "Magnakai") return 3;
   if (sub === "Grand Master" || sub === "New Order") return 4;
   return 0;
-}
-
-function getRequiredEquipmentCount() {
-  if (ccState.book?.subseries === "Kai") return 2; // rolled randomly
-  return 5;
 }
 
 function buildDisciplineSelector() {
@@ -1802,77 +1777,6 @@ function toggleCCDiscipline(name) {
     `${ccState.disciplines.length}/${req} selected.`;
 }
 
-async function buildEquipmentSelector() {
-  const sub = ccState.book?.subseries;
-  const container = document.getElementById("equip-selector");
-  container.innerHTML = "";
-  const title = document.getElementById("equip-step-title");
-  ccState.equipment = [];
-
-  if (sub === "Kai") {
-    title.textContent = "Starting Equipment (rolling 2 random items)";
-    const resp = await fetch("/api/roll_equipment");
-    const data = await resp.json();
-    ccState.equipment = data.items;
-    let html = "<p style='color:#aaa;font-size:0.88rem;margin-bottom:8px;'>You receive:</p>";
-    data.items.forEach(item => {
-      html += `<div class="inv-item"><span>${item.item}</span><span class="item-tag">${item.type}</span></div>`;
-    });
-    container.innerHTML = html;
-  } else {
-    const opts = sub === "Magnakai" ? gameData.magnakai_equipment_options : gameData.grand_master_equipment_options;
-    const req = 5;
-    title.textContent = `Starting Equipment — Select ${req} items`;
-
-    opts.forEach(item => {
-      const div = document.createElement("div");
-      div.className = "equip-option";
-      div.id = "equip-opt-" + item.item.replace(/\s/g,"_");
-      div.innerHTML = `
-        <input type="checkbox" id="equip-cb-${item.item.replace(/\s/g,"_")}"
-          onchange="toggleCCEquip('${item.item}', '${item.type}')" />
-        <span>${item.item}</span>
-        <span class="item-tag">${item.type}</span>
-      `;
-      div.onclick = e => {
-        if (e.target.tagName !== "INPUT") {
-          const cb = div.querySelector("input");
-          cb.checked = !cb.checked;
-          toggleCCEquip(item.item, item.type);
-        }
-      };
-      container.appendChild(div);
-    });
-    const hint = document.createElement("p");
-    hint.id = "equip-hint";
-    hint.style.cssText = "font-size:0.8rem;color:#aaa;margin-top:8px;";
-    hint.textContent = `0/${req} selected.`;
-    container.appendChild(hint);
-  }
-}
-
-function toggleCCEquip(name, type) {
-  const req = 5;
-  const optId = "equip-opt-" + name.replace(/\s/g,"_");
-  const cbId  = "equip-cb-"  + name.replace(/\s/g,"_");
-  const cb  = document.getElementById(cbId);
-  const opt = document.getElementById(optId);
-
-  if (cb.checked) {
-    if (ccState.equipment.length >= req) {
-      cb.checked = false;
-      toast(`Select exactly ${req} items.`, "error"); return;
-    }
-    ccState.equipment.push({item: name, type});
-    opt.classList.add("selected");
-  } else {
-    ccState.equipment = ccState.equipment.filter(e => e.item !== name);
-    opt.classList.remove("selected");
-  }
-  const hint = document.getElementById("equip-hint");
-  if (hint) hint.textContent = `${ccState.equipment.length}/${req} selected.`;
-}
-
 function buildGoldStep() {
   const sub = ccState.book?.subseries;
   const hint = document.getElementById("gold-roll-hint");
@@ -1905,28 +1809,6 @@ function finalizeCharacter() {
   state.ep_current = ccState.ep;
   state.gold = ccState.gold;
   state.skills = [...ccState.disciplines];
-
-  ccState.equipment.forEach(item => {
-    if (item.type === "Weapon") {
-      if (state.weapons.length < 2) state.weapons.push({name: item.item});
-    } else if (item.type === "Backpack Item") {
-      if (item.item.includes("Meal") || item.item.includes("meal")) {
-        const count = parseInt(item.item) || 2;
-        state.meals += count;
-      } else {
-        if (state.backpack.length < 8) state.backpack.push({name: item.item});
-      }
-    } else if (item.type === "Special Item") {
-      if (item.item.toLowerCase().includes("quiver")) {
-        state.quivers.push({arrows: 6});
-      } else {
-        if (state.special_items.length < 12) state.special_items.push({name: item.item});
-      }
-    } else if (item.type === "Currency") {
-      const match = item.item.match(/(\d+)/);
-      if (match) state.gold = Math.min(50, state.gold + parseInt(match[1]));
-    }
-  });
 
   saveStateToStorage();
   closeModal("modal-char-create");
