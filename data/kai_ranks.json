@@ -1,0 +1,46 @@
+{
+  "lone_wolf_ranks": {
+    "kai_disciplines": [
+      { "skills_learned": 1, "rank": "Novice" },
+      { "skills_learned": 2, "rank": "Intuite" },
+      { "skills_learned": 3, "rank": "Doan" },
+      { "skills_learned": 4, "rank": "Acolyte" },
+      { "skills_learned": 5, "rank": "Initiate" },
+      { "skills_learned": 6, "rank": "Aspirant" },
+      { "skills_learned": 7, "rank": "Guardian" },
+      { "skills_learned": 8, "rank": "Warmarn (or Journeyman)" },
+      { "skills_learned": 9, "rank": "Savant" },
+      { "skills_learned": 10, "rank": "Kai Master" }
+    ],
+    "magnakai_disciplines": [
+      { "skills_learned": 1, "rank": "Kai Master" },
+      { "skills_learned": 2, "rank": "Kai Master Senior" },
+      { "skills_learned": 3, "rank": "Kai Master Superior" },
+      { "skills_learned": 4, "rank": "Primate" },
+      { "skills_learned": 5, "rank": "Tutelary" },
+      { "skills_learned": 6, "rank": "Principalin" },
+      { "skills_learned": 7, "rank": "Mentora" },
+      { "skills_learned": 8, "rank": "Scion-kai" },
+      { "skills_learned": 9, "rank": "Archmaster" },
+      { "skills_learned": 10, "rank": "Kai Grand Master" }
+    ],
+    "grand_master_disciplines": [
+      { "skills_learned": 1, "rank": "Kai Grand Master" },
+      { "skills_learned": 2, "rank": "Kai Grand Master Senior" },
+      { "skills_learned": 3, "rank": "Kai Grand Master Superior" },
+      { "skills_learned": 4, "rank": "Kai Grand Sentinel" },
+      { "skills_learned": 5, "rank": "Kai Grand Defender" },
+      { "skills_learned": 6, "rank": "Kai Grand Guardian" },
+      { "skills_learned": 7, "rank": "Sun Knight" },
+      { "skills_learned": 8, "rank": "Sun Lord" },
+      { "skills_learned": 9, "rank": "Sun Thane" },
+      { "skills_learned": 10, "rank": "Grand Thane" },
+      { "skills_learned": 11, "rank": "Grand Crown" },
+      { "skills_learned": 12, "rank": "Sun Prince" },
+      { "skills_learned": 13, "rank": "Kai Supreme Master" },
+      { "skills_learned": 14, "rank": "Kai Supreme Master Senior" },
+      { "skills_learned": 15, "rank": "Kai Supreme Master Superior" },
+      { "skills_learned": 16, "rank": "Kai Supreme Defender" }
+    ]
+  }
+}
