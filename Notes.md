@@ -85,6 +85,7 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
     - Allow the user to choose an additional Kai discipline as per the rules at character creation
   - **If** next_book.suberies == 'Magnakai':
     - **If** the current book subseries == 'Kai':
+      - Allow choice of 3 Magnakai skills as per Character_Creation_Logic
       - All weapons and backpack items can be kept
       - Only the following special items can be carried over to the new book (other should be removed and the player informed):
         - (Kai) Shield
@@ -107,6 +108,7 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
        - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
   - **If** next_book.suberies == 'Grand Master':
     - **If** the current book subseries == 'Magnakai' or 'Kai':
+      - Allow the selection of 4 Grand Master disciplines as per Character_Creation_Logic
       - All weapons and backpack items can be kept
       - Only the following special items can be carried over to the new book (other should be removed and the player informed):
         - Crystal Star Pendant

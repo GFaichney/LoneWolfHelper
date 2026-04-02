@@ -1854,7 +1854,8 @@ let bsState = {
   newGold: null,
   removedItems: [],
   keptItems: [],
-  discipline: null,
+  selectedDisciplines: [],
+  requiredDisciplineCount: 0,
   extraWmWeapon: null,   // weapon added to existing Weaponmastery list
   newWmWeapons: [],      // weapons chosen for a newly selected Weaponmastery
   steps: [],
@@ -1869,7 +1870,8 @@ function openBookSwitchModal() {
   bsState = {
     nextBook: null, goldRoll: null, newGold: null,
     removedItems: [], keptItems: [],
-    discipline: null, extraWmWeapon: null, newWmWeapons: [],
+    selectedDisciplines: [], requiredDisciplineCount: 0,
+    extraWmWeapon: null, newWmWeapons: [],
     steps: ['book'], currentStepIdx: 0,
   };
 
@@ -1897,6 +1899,63 @@ function onBSBookSelect() {
     `<strong>${curr.book_name}</strong> (${curr.subseries}) &nbsp;&#x21D2;&nbsp; <strong>${bsState.nextBook.book_name}</strong> (${bsState.nextBook.subseries})`;
 }
 
+function getBSDisciplinePlan() {
+  if (!bsState.nextBook) return {count: 0, list: [], title: '', hint: ''};
+
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  const currSub = curr?.subseries;
+  const nextSub = bsState.nextBook?.subseries;
+
+  if (nextSub === 'Kai') {
+    return {
+      count: 1,
+      list: gameData.kai_disciplines,
+      title: 'Choose Additional Kai Discipline',
+      hint: 'Select 1 new discipline to learn.',
+    };
+  }
+
+  if (nextSub === 'Magnakai' && currSub === 'Kai') {
+    return {
+      count: 3,
+      list: gameData.magnakai_disciplines,
+      title: 'Choose 3 Magnakai Disciplines',
+      hint: 'Select exactly 3 Magnakai disciplines (as per character creation rules).',
+    };
+  }
+
+  if (nextSub === 'Magnakai' && currSub === 'Magnakai') {
+    return {
+      count: 1,
+      list: gameData.magnakai_disciplines,
+      title: 'Choose Additional Magnakai Discipline',
+      hint: state.skills.includes('Weaponmastery')
+        ? 'Select 1 new discipline. You will also be able to add 1 weapon to your Weaponmastery list.'
+        : 'Select 1 new discipline to learn.',
+    };
+  }
+
+  if (nextSub === 'Grand Master' && (currSub === 'Kai' || currSub === 'Magnakai')) {
+    return {
+      count: 4,
+      list: gameData.grand_master_disciplines,
+      title: 'Choose 4 Grand Master Disciplines',
+      hint: 'Select exactly 4 Grand Master disciplines (as per character creation rules).',
+    };
+  }
+
+  if (nextSub === 'Grand Master' && currSub === 'Grand Master') {
+    return {
+      count: 1,
+      list: gameData.grand_master_disciplines,
+      title: 'Choose Additional Grand Master Discipline',
+      hint: 'Select 1 new discipline to learn.',
+    };
+  }
+
+  return {count: 0, list: [], title: '', hint: ''};
+}
+
 // Build the ordered list of steps based on the chosen transition
 function determineBSSteps() {
   const curr = gameData.books.find(b => b.book_number === state.book_number);
@@ -1915,8 +1974,11 @@ function determineBSSteps() {
     steps.push('items');
   }
 
-  // Discipline selection only for same-subseries transitions (not New Order)
-  if (currSub === nextSub && currSub !== 'New Order') {
+  const plan = getBSDisciplinePlan();
+  bsState.requiredDisciplineCount = plan.count;
+
+  // Discipline selection according to requested transition rules
+  if (plan.count > 0) {
     steps.push('discipline');
     // Weapon steps are injected dynamically after the discipline is chosen
   }
@@ -2000,22 +2062,25 @@ function bsNext() {
   if (currentStep === 'discipline') {
     const grid = document.getElementById('bs-disc-selector');
     const hasOptions = !!grid.querySelector('.disc-option');
-    if (hasOptions && !bsState.discipline) {
-      toast("Select a discipline to learn.", "error"); return;
+    const required = bsState.requiredDisciplineCount || 0;
+    if (hasOptions && bsState.selectedDisciplines.length !== required) {
+      toast(`Select exactly ${required} discipline${required !== 1 ? 's' : ''}.`, "error"); return;
     }
 
     const curr = gameData.books.find(b => b.book_number === state.book_number);
     const currSub = curr.subseries;
     const nextSub = bsState.nextBook.subseries;
 
-    // For Magnakai→Magnakai: inject weapon step(s) after discipline
-    if (currSub === 'Magnakai' && nextSub === 'Magnakai') {
+    // For transitions where Magnakai Weaponmastery can be selected/used: inject weapon step(s)
+    if (nextSub === 'Magnakai') {
+      // Remove previously injected weapon-related steps if user navigates back/forward
+      bsState.steps = bsState.steps.filter(s => s !== 'weapon-extra' && s !== 'weapon-newwm');
       const hasExistingWM = state.skills.includes('Weaponmastery');
-      const choseWM = bsState.discipline === 'Weaponmastery';
+      const choseWM = bsState.selectedDisciplines.includes('Weaponmastery');
       const insertAt = bsState.currentStepIdx + 1;
       if (choseWM) {
         bsState.steps.splice(insertAt, 0, 'weapon-newwm');
-      } else if (hasExistingWM) {
+      } else if (currSub === 'Magnakai' && hasExistingWM) {
         bsState.steps.splice(insertAt, 0, 'weapon-extra');
       }
     }
@@ -2041,11 +2106,7 @@ function bsNext() {
 
   // ── Step: weapon-newwm ──────────────────────────────────────────────────
   if (currentStep === 'weapon-newwm') {
-    const completedMagnakaiCount = (state.completed_books || []).filter(bn => {
-      const b = gameData.books.find(x => x.book_number === bn);
-      return b && b.subseries === 'Magnakai';
-    }).length;
-    const requiredWeapons = 3 + completedMagnakaiCount;
+    const requiredWeapons = getBSRequiredNewWMWeaponsCount();
     if (bsState.newWmWeapons.length !== requiredWeapons) {
       toast(`Select exactly ${requiredWeapons} weapon${requiredWeapons !== 1 ? 's' : ''}.`, "error");
       return;
@@ -2108,33 +2169,17 @@ function renderBSItemsStep() {
 }
 
 function renderBSDisciplineStep() {
-  const curr = gameData.books.find(b => b.book_number === state.book_number);
-  const currSub = curr.subseries;
-
-  let disciplines = [];
-  let title = 'Choose Additional Discipline';
-  let hint  = 'Select 1 new discipline to learn.';
-
-  if (currSub === 'Kai') {
-    disciplines = gameData.kai_disciplines;
-    title = 'Choose Additional Kai Discipline';
-  } else if (currSub === 'Magnakai') {
-    disciplines = gameData.magnakai_disciplines;
-    title = 'Choose Additional Magnakai Discipline';
-    if (state.skills.includes('Weaponmastery')) {
-      hint = 'Select 1 new discipline. You will also be able to add 1 weapon to your Weaponmastery list.';
-    }
-  } else if (currSub === 'Grand Master') {
-    disciplines = gameData.grand_master_disciplines;
-    title = 'Choose Additional Grand Master Discipline';
-  }
+  const plan = getBSDisciplinePlan();
+  const disciplines = plan.list || [];
+  const title = plan.title || 'Choose Discipline';
+  const hint = plan.hint || 'Select disciplines.';
 
   document.getElementById('bs-disc-title').textContent = title;
   document.getElementById('bs-disc-hint').textContent  = hint;
 
   const grid = document.getElementById('bs-disc-selector');
   grid.innerHTML = '';
-  bsState.discipline = null;
+  bsState.selectedDisciplines = [];
 
   disciplines.forEach(d => {
     if (state.skills.includes(d.name)) return; // already learned
@@ -2144,17 +2189,21 @@ function renderBSDisciplineStep() {
     div.className = 'disc-option';
     div.id = 'bs-disc-opt-' + safeId;
     div.innerHTML = `
-      <input type="radio" name="bs-disc-rb" value="${d.name}" style="width:auto;" />
+      <input type="checkbox" value="${d.name}" style="width:auto;" />
       <div class="disc-option-text">
         <strong>${d.name}</strong>
         <small>${d.combat_bonus || ''}</small>
       </div>
     `;
-    div.onclick = () => {
-      div.querySelector('input').checked = true;
-      onBSDisciplineSelect(d.name);
+    const cb = div.querySelector('input');
+    const toggle = () => onBSDisciplineSelect(cb, d.name);
+    cb.onchange = toggle;
+    div.onclick = (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        cb.checked = !cb.checked;
+        toggle();
+      }
     };
-    div.querySelector('input').onchange = () => onBSDisciplineSelect(d.name);
     grid.appendChild(div);
   });
 
@@ -2163,11 +2212,28 @@ function renderBSDisciplineStep() {
   }
 }
 
-function onBSDisciplineSelect(name) {
-  bsState.discipline = name;
+function onBSDisciplineSelect(cb, name) {
+  const required = bsState.requiredDisciplineCount || 0;
+  const idx = bsState.selectedDisciplines.indexOf(name);
+
+  if (cb.checked) {
+    if (idx === -1) {
+      if (bsState.selectedDisciplines.length >= required) {
+        cb.checked = false;
+        toast(`You can only select ${required} discipline${required !== 1 ? 's' : ''}.`, "error");
+        return;
+      }
+      bsState.selectedDisciplines.push(name);
+    }
+  } else if (idx !== -1) {
+    bsState.selectedDisciplines.splice(idx, 1);
+  }
+
   document.querySelectorAll('#bs-disc-selector .disc-option').forEach(opt => opt.classList.remove('selected'));
-  const el = document.getElementById('bs-disc-opt-' + name.replace(/[\s-]/g, '_'));
-  if (el) el.classList.add('selected');
+  bsState.selectedDisciplines.forEach(selName => {
+    const el = document.getElementById('bs-disc-opt-' + selName.replace(/[\s-]/g, '_'));
+    if (el) el.classList.add('selected');
+  });
 }
 
 function renderBSWeaponExtraStep() {
@@ -2210,15 +2276,20 @@ function onBSExtraWeaponSelect(w) {
 }
 
 function renderBSWeaponNewWMStep() {
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  const currSub = curr?.subseries;
+  const nextSub = bsState.nextBook?.subseries;
   const completedMagnakaiCount = (state.completed_books || []).filter(bn => {
     const b = gameData.books.find(x => x.book_number === bn);
     return b && b.subseries === 'Magnakai';
   }).length;
-  const requiredWeapons = 3 + completedMagnakaiCount;
+  const requiredWeapons = getBSRequiredNewWMWeaponsCount();
 
   document.getElementById('bs-wm-newwm-hint').textContent =
     `Select ${requiredWeapons} weapon${requiredWeapons !== 1 ? 's' : ''} to master ` +
-    `(3 base + ${completedMagnakaiCount} for completed Magnakai book${completedMagnakaiCount !== 1 ? 's' : ''}).`;
+    ((currSub === 'Magnakai' && nextSub === 'Magnakai')
+      ? `(3 base + ${completedMagnakaiCount} for completed Magnakai book${completedMagnakaiCount !== 1 ? 's' : ''}).`
+      : '(3 base as per Magnakai character creation rules).');
 
   const grid = document.getElementById('bs-wm-newwm-selector');
   grid.innerHTML = '';
@@ -2258,6 +2329,28 @@ function toggleBSNewWMWeapon(cb, requiredWeapons) {
   }
 }
 
+function getBSRequiredNewWMWeaponsCount() {
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  const currSub = curr?.subseries;
+  const nextSub = bsState.nextBook?.subseries;
+
+  if (currSub === 'Magnakai' && nextSub === 'Magnakai') {
+    let completedMagnakaiCount = (state.completed_books || []).filter(bn => {
+      const b = gameData.books.find(x => x.book_number === bn);
+      return b && b.subseries === 'Magnakai';
+    }).length;
+
+    // Current Magnakai book becomes completed during this transition.
+    if (!(state.completed_books || []).includes(state.book_number)) {
+      completedMagnakaiCount += 1;
+    }
+
+    return 3 + completedMagnakaiCount;
+  }
+
+  return 3;
+}
+
 function finalizeBookSwitch() {
   const nextBook = bsState.nextBook;
 
@@ -2279,11 +2372,15 @@ function finalizeBookSwitch() {
     state.special_items = state.special_items.filter(item => !toRemove.has(item.name));
   }
 
-  // 5. Add new discipline (and trigger weapon roll for Weaponskill)
-  if (bsState.discipline && !state.skills.includes(bsState.discipline)) {
-    state.skills.push(bsState.discipline);
-    if (bsState.discipline === 'Weaponskill') handleWeaponskill(false);
-  }
+  // 5. Add newly selected disciplines (and trigger weapon roll for Weaponskill)
+  const addedDisciplines = [];
+  (bsState.selectedDisciplines || []).forEach(d => {
+    if (!state.skills.includes(d)) {
+      state.skills.push(d);
+      addedDisciplines.push(d);
+      if (d === 'Weaponskill') handleWeaponskill(false);
+    }
+  });
 
   // 6a. Set weapons for newly chosen Weaponmastery
   if (bsState.newWmWeapons.length > 0) {
@@ -2316,7 +2413,12 @@ function finalizeBookSwitch() {
   const goldAdded = bsState.goldRoll !== null ? bsState.goldRoll + 10 : 0;
   toast(`Book changed to: ${nextBook.book_name} (${nextBook.subseries})`, "success");
   if (goldAdded > 0) setTimeout(() => toast(`+${goldAdded} gold → ${state.gold} total`, "info"), 250);
-  if (bsState.discipline) setTimeout(() => toast(`New discipline: ${bsState.discipline}`, "success"), 500);
+  if (addedDisciplines.length > 0) {
+    const msg = addedDisciplines.length === 1
+      ? `New discipline: ${addedDisciplines[0]}`
+      : `New disciplines: ${addedDisciplines.join(', ')}`;
+    setTimeout(() => toast(msg, "success"), 500);
+  }
   if (bsState.extraWmWeapon && bsState.extraWmWeapon !== '__none__') {
     setTimeout(() => toast(`Weaponmastery expanded: ${bsState.extraWmWeapon} added`, "success"), 750);
   }
