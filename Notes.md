@@ -54,3 +54,22 @@ Phase 4: Starting Equipment
         { "item": "3 Meals", "type": "Backpack Item" }
       ]
 ```
+
+
+## Extra Combat Logic:
+In the combat tab, when calculating the player's combat skill, if a weapon is used that matches that chosen for the player's weaponskill discipline (if they have it) then +2 CS should be added.
+
+Sommerswerd checkbox should only be available if the player has the Sommerswerd in their special items
+
+**If** In Combat:
+  - **If** Sommerswerd is checked:
+    - **If** the Player has Grand Weaponmastery, add 5 CS
+    - **else if** the player has Magnakai discipline of Weaponmastery with `Sword` as one of the weapons, add 3 CS
+    - **else** if the player has the Kai discipline of Weaponskill with `Sword` as the weapon, add 2 CS
+  - **else**
+  - **If** the player has selected a weapon from the `Weapon in hand` dropdown
+      - **If** the Player has Grand Weaponmastery, add 5 CS
+      - **else if** the player has Magnakai discipline of Weaponmastery with the selected weapon as one of the weapons, add 3 CS
+      - **else** if the player has the Kai discipline of Weaponskill with the selected weapon, add 2 CS
+
+If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to say 'Sommerswerd'

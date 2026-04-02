@@ -139,6 +139,19 @@ MAGNAKAI_EQUIPMENT_OPTIONS = [
     {"item": "3 Meals", "type": "Backpack Item"},
 ]
 
+WEAPONSKILL_WEAPONS = [
+    {"roll": 1, "weapon": "Dagger"},
+    {"roll": 2, "weapon": "Spear"},
+    {"roll": 3, "weapon": "Mace"},
+    {"roll": 4, "weapon": "Short Sword"},
+    {"roll": 5, "weapon": "Warhammer"},
+    {"roll": 6, "weapon": "Sword"},
+    {"roll": 7, "weapon": "Axe"},
+    {"roll": 8, "weapon": "Sword"},
+    {"roll": 9, "weapon": "Quarterstaff"},
+    {"roll": 10, "weapon": "Broadsword"},
+]
+
 GRAND_MASTER_EQUIPMENT_OPTIONS = [
     {"item": "Sword", "type": "Weapon"},
     {"item": "Bow", "type": "Weapon"},
@@ -261,6 +274,15 @@ def game_data():
 @app.route("/api/roll_random")
 def roll_random():
     return jsonify({"value": random.randint(0, 9)})
+
+
+@app.route("/api/roll_weaponskill")
+def roll_weaponskill():
+    roll = random.randint(1, 10)
+    match = next((w for w in WEAPONSKILL_WEAPONS if w["roll"] == roll), None)
+    if not match:
+        return jsonify({"error": "Invalid roll"}), 500
+    return jsonify(match)
 
 
 @app.route("/api/roll_equipment")

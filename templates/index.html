@@ -665,7 +665,7 @@
         </div>
         <div class="combat-modifier">
           <label>Sommerswerd (+8 CS)</label>
-          <input type="checkbox" id="combat-sommerswerd" onchange="updateCombatRatio()" />
+          <input type="checkbox" id="combat-sommerswerd" onchange="onSommerswerdChange()" />
         </div>
         <div class="combat-modifier">
           <label>Enemy vs Undead (×2 dmg)</label>
@@ -880,6 +880,7 @@ const DEFAULT_STATE = () => ({
   lore_ep_bonus: 0,
   completed_circles: [],
   gold_adj_step: 1,
+  weaponskill_weapon: null,
 });
 
 let state = DEFAULT_STATE();
@@ -1047,9 +1048,15 @@ function renderSkillList(containerId, disciplines) {
     const active = state.skills.includes(d.name);
     const div = document.createElement("div");
     div.className = "skill-item" + (active ? " active" : "");
+    
+    let bonusText = d.combat_bonus ? `<span class="skill-bonus">${d.combat_bonus}</span>` : "";
+    if (active && d.name === "Weaponskill" && state.weaponskill_weapon) {
+      bonusText = `<span class="skill-bonus">${d.combat_bonus} [${state.weaponskill_weapon}]</span>`;
+    }
+    
     div.innerHTML = `
       <span>${d.name}</span>
-      ${d.combat_bonus ? `<span class="skill-bonus">${d.combat_bonus}</span>` : ""}
+      ${bonusText}
       <button class="btn btn-sm ${active ? "btn-danger" : "btn-success"}"
         onclick="toggleSkill('${d.name}')">${active ? "Remove" : "Add"}</button>
     `;
@@ -1312,11 +1319,42 @@ function toggleSkill(name) {
   const idx = state.skills.indexOf(name);
   if (idx === -1) {
     state.skills.push(name);
+    if (name === "Weaponskill") handleWeaponskill(false);
   } else {
     state.skills.splice(idx, 1);
+    if (name === "Weaponskill") state.weaponskill_weapon = null;
   }
   renderSkills();
   updateLoreCircles();
+}
+
+async function handleWeaponskill(isCC = false) {
+  try {
+    const resp = await fetch("/api/roll_weaponskill");
+    const data = await resp.json();
+    if (data.error) return;
+    
+    const msg = `Weaponskill randomly assigned: ${data.weapon} (Roll: ${data.roll})`;
+    toast(msg, "info");
+    
+    if (isCC) {
+      ccState.weaponskillWeapon = data.weapon;
+    } else {
+      state.weaponskill_weapon = data.weapon;
+      renderSkills();
+      const note = {
+        id: Date.now().toString(),
+        book_number: state.book_number,
+        page: "Skill Selection",
+        text: `Weaponskill: Proficient with ${data.weapon}`
+      };
+      state.notes.push(note);
+      renderNotes();
+      saveStateToStorage();
+    }
+  } catch(e) {
+    console.error("Failed to roll weaponskill", e);
+  }
 }
 
 // =============================================================================
@@ -1355,21 +1393,45 @@ function preFillCombatFromSheet() {
   document.getElementById("combat-lw-ep").value = state.ep_current;
   const effCS = state.cs_current + state.lore_cs_bonus;
   document.getElementById("combat-lw-cs").value = effCS;
+  
+  const hasSommerswerd = state.special_items.some(i => i.name.toLowerCase() === 'sommerswerd');
+  const swCheckbox = document.getElementById("combat-sommerswerd");
+  swCheckbox.disabled = !hasSommerswerd;
+  if (!hasSommerswerd) swCheckbox.checked = false;
+
   updateCombatWeaponSelect();
   updateCombatDisciplineSelect();
   updateCombatRatio();
 }
 
+function onSommerswerdChange() {
+  updateCombatWeaponSelect();
+  updateCombatRatio();
+}
+
 function updateCombatWeaponSelect() {
   const sel = document.getElementById("combat-weapon");
-  // rebuild
-  sel.innerHTML = '<option value="none">No weapon (−4 CS)</option><option value="normal">Standard weapon (no bonus)</option>';
-  state.weapons.forEach(w => {
-    const opt = document.createElement("option");
-    opt.value = w.name;
-    opt.textContent = w.name;
-    sel.appendChild(opt);
-  });
+  const oldVal = sel.value;
+  sel.innerHTML = '';
+  
+  const swCheckbox = document.getElementById("combat-sommerswerd");
+
+  if (swCheckbox.checked) {
+    sel.innerHTML = '<option value="Sommerswerd">Sommerswerd</option>';
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    sel.innerHTML = '<option value="none">No weapon (−4 CS)</option><option value="normal">Standard weapon (no bonus)</option>';
+    state.weapons.forEach(w => {
+      const opt = document.createElement("option");
+      opt.value = w.name;
+      opt.textContent = w.name;
+      sel.appendChild(opt);
+    });
+    if (Array.from(sel.options).some(o => o.value === oldVal)) {
+      sel.value = oldVal;
+    }
+  }
   sel.onchange = updateCombatRatio;
 }
 
@@ -1404,7 +1466,27 @@ function updateCombatRatio() {
   if (shieldChecked) mod += 2;
 
   const sommerswerdChecked = document.getElementById("combat-sommerswerd").checked;
-  if (sommerswerdChecked) mod += 8;
+  if (sommerswerdChecked) {
+    mod += 8;
+    if (state.skills.includes("Grand Weaponmastery")) {
+      mod += 5;
+    } else if (state.skills.includes("Weaponmastery") && (state.weaponmastery_weapons || []).map(w => w.toLowerCase()).includes("sword")) {
+      mod += 3;
+    } else if (state.skills.includes("Weaponskill") && (state.weaponskill_weapon || "").toLowerCase() === "sword") {
+      mod += 2;
+    }
+  } else {
+    if (weaponVal !== "none" && weaponVal !== "normal") {
+      const activeWep = weaponVal.toLowerCase();
+      if (state.skills.includes("Grand Weaponmastery")) {
+        mod += 5;
+      } else if (state.skills.includes("Weaponmastery") && (state.weaponmastery_weapons || []).map(w => w.toLowerCase()).includes(activeWep)) {
+        mod += 3;
+      } else if (state.skills.includes("Weaponskill") && (state.weaponskill_weapon || "").toLowerCase() === activeWep) {
+        mod += 2;
+      }
+    }
+  }
 
   const discBonus = parseInt(document.getElementById("combat-discipline-bonus").value) || 0;
   mod += discBonus;
@@ -1623,7 +1705,7 @@ function deleteSave(id) {
 // CHARACTER CREATION WIZARD
 // =============================================================================
 function openCharCreateModal() {
-  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null };
+  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null, weaponskillWeapon: null };
   document.getElementById("new-char-name").value = "";
   document.getElementById("new-char-book").value = "";
   document.getElementById("new-cs-val").textContent = "—";
@@ -1769,9 +1851,11 @@ function toggleCCDiscipline(name) {
     }
     ccState.disciplines.push(name);
     opt.classList.add("selected");
+    if (name === "Weaponskill") handleWeaponskill(true);
   } else {
     ccState.disciplines = ccState.disciplines.filter(d => d !== name);
     opt.classList.remove("selected");
+    if (name === "Weaponskill") ccState.weaponskillWeapon = null;
   }
   document.getElementById("disc-count-hint").textContent =
     `${ccState.disciplines.length}/${req} selected.`;
@@ -1809,6 +1893,16 @@ function finalizeCharacter() {
   state.ep_current = ccState.ep;
   state.gold = ccState.gold;
   state.skills = [...ccState.disciplines];
+  state.weaponskill_weapon = ccState.weaponskillWeapon;
+  
+  if (ccState.weaponskillWeapon) {
+    state.notes.push({
+      id: Date.now().toString(),
+      book_number: state.book_number,
+      page: "Character Creation",
+      text: `Weaponskill: Proficient with ${ccState.weaponskillWeapon}`
+    });
+  }
 
   saveStateToStorage();
   closeModal("modal-char-create");

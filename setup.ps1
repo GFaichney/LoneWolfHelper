@@ -1,9 +1,12 @@
 # Detect Python executable
+$pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+$python3Cmd = Get-Command python3 -ErrorAction SilentlyContinue
+
 $pythonCandidates = @(
     "python",
     "python3",
-    (Get-Command python -ErrorAction SilentlyContinue)?.Source,
-    (Get-Command python3 -ErrorAction SilentlyContinue)?.Source
+    $(if ($pythonCmd) { $pythonCmd.Source }),
+    $(if ($python3Cmd) { $python3Cmd.Source })
 ) | Where-Object { $_ -ne $null -and $_ -ne "" } | Select-Object -Unique
 
 $pythonExe = $null
