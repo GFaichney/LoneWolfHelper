@@ -2430,11 +2430,6 @@ function finalizeBookSwitch() {
 // =============================================================================
 // SAVE / LOAD
 // =============================================================================
-function getSaves() {
-  try { return JSON.parse(localStorage.getItem("lw_saves") || "[]"); } catch(e) { return []; }
-}
-function setSaves(saves) { localStorage.setItem("lw_saves", JSON.stringify(saves)); }
-
 function openSaveModal() {
   if (!state.book_number) { toast("No character to save.", "error"); return; }
   document.getElementById("save-session-name").value = "";
@@ -2442,64 +2437,87 @@ function openSaveModal() {
   openModal("modal-save");
 }
 
-function doSave() {
+async function doSave() {
   const session = document.getElementById("save-session-name").value.trim();
   const page = document.getElementById("save-page").value.trim();
   if (!session) { toast("Enter a session name.", "error"); return; }
   if (!page) { toast("Enter a page/section number.", "error"); return; }
 
-  const book = gameData.books.find(b => b.book_number === state.book_number);
-  const bookName = book ? book.book_name : "Unknown";
-  const timestamp = new Date().toISOString();
-  const saveEntry = {
-    id: Date.now().toString(),
-    label: `${bookName} — p.${page} — "${session}"`,
-    session,
-    page,
-    book_name: bookName,
-    timestamp,
-    state: JSON.parse(JSON.stringify(state)),
-  };
-  const saves = getSaves();
-  saves.push(saveEntry);
-  setSaves(saves);
-  closeModal("modal-save");
-  toast("Game saved!", "success");
+  try {
+    const resp = await fetch("/api/saves", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        session,
+        page,
+        state: JSON.parse(JSON.stringify(state)),
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast(data.error || "Failed to save game.", "error");
+      return;
+    }
+    closeModal("modal-save");
+    toast("Game saved!", "success");
+  } catch (e) {
+    toast("Failed to save game.", "error");
+  }
 }
 
-function openLoadModal() {
-  const saves = getSaves();
+async function openLoadModal() {
   const list = document.getElementById("saves-list");
-  if (saves.length === 0) {
-    list.innerHTML = '<p style="color:#666;font-size:0.85rem;">No saved games found.</p>';
-  } else {
-    list.innerHTML = "";
-    saves.slice().reverse().forEach(save => {
-      const div = document.createElement("div");
-      div.className = "save-item";
-      div.innerHTML = `
-        <div style="flex:1">
-          <span>${save.label}</span><br/>
-          <small>${new Date(save.timestamp).toLocaleString()}</small>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="selectLoad('${save.id}')">Load</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteSave('${save.id}')">Delete</button>
-      `;
-      list.appendChild(div);
-    });
+  try {
+    const resp = await fetch("/api/saves");
+    const payload = await resp.json();
+    const saves = payload.saves || [];
+
+    if (!resp.ok) {
+      list.innerHTML = '<p style="color:#f08080;font-size:0.85rem;">Failed to load saves.</p>';
+      openModal("modal-load");
+      return;
+    }
+
+    if (saves.length === 0) {
+      list.innerHTML = '<p style="color:#666;font-size:0.85rem;">No saved games found.</p>';
+    } else {
+      list.innerHTML = "";
+      saves.slice().reverse().forEach(save => {
+        const div = document.createElement("div");
+        div.className = "save-item";
+        div.innerHTML = `
+          <div style="flex:1">
+            <span>${save.label}</span><br/>
+            <small>${new Date(save.timestamp).toLocaleString()}</small>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="selectLoad('${save.id}')">Load</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSave('${save.id}')">Delete</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+  } catch (e) {
+    list.innerHTML = '<p style="color:#f08080;font-size:0.85rem;">Failed to load saves.</p>';
   }
   openModal("modal-load");
 }
 
-function selectLoad(id) {
-  const saves = getSaves();
-  const save = saves.find(s => s.id === id);
-  if (!save) return;
-  pendingLoad = save;
-  document.getElementById("load-confirm-text").textContent =
-    `Resume "${save.session}" in ${save.book_name}, page ${save.page}. Continue to that page to resume.`;
-  closeModal("modal-load");
-  openModal("modal-load-confirm");
+async function selectLoad(id) {
+  try {
+    const resp = await fetch(`/api/saves/${encodeURIComponent(id)}`);
+    const save = await resp.json();
+    if (!resp.ok) {
+      toast(save.error || "Failed to load save.", "error");
+      return;
+    }
+    pendingLoad = save;
+    document.getElementById("load-confirm-text").textContent =
+      `Resume "${save.session}" in ${save.book_name}, page ${save.page}. Continue to that page to resume.`;
+    closeModal("modal-load");
+    openModal("modal-load-confirm");
+  } catch (e) {
+    toast("Failed to load save.", "error");
+  }
 }
 
 function confirmLoad() {
@@ -2512,11 +2530,18 @@ function confirmLoad() {
   pendingLoad = null;
 }
 
-function deleteSave(id) {
-  let saves = getSaves();
-  saves = saves.filter(s => s.id !== id);
-  setSaves(saves);
-  openLoadModal(); // refresh
+async function deleteSave(id) {
+  try {
+    const resp = await fetch(`/api/saves/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast(data.error || "Failed to delete save.", "error");
+      return;
+    }
+    await openLoadModal(); // refresh
+  } catch (e) {
+    toast("Failed to delete save.", "error");
+  }
 }
 
 // =============================================================================

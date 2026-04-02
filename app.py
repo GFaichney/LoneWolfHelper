@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import uuid
+from datetime import datetime, timezone
 from flask import Flask, jsonify, request, render_template, send_from_directory
 
 app = Flask(__name__)
@@ -168,6 +170,9 @@ KAI_RANKS_PATH = os.path.join(os.path.dirname(__file__), "data", "kai_ranks.json
 with open(KAI_RANKS_PATH, "r", encoding="utf-8") as f:
     KAI_RANKS = json.load(f)
 
+SAVES_DIR = os.path.join(os.path.dirname(__file__), "saves")
+os.makedirs(SAVES_DIR, exist_ok=True)
+
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -245,6 +250,29 @@ def compute_lore_circle_bonuses(skills: list) -> dict:
             total_ep += circle["ep_bonus"]
             completed.append(circle["name"])
     return {"cs_bonus": total_cs, "ep_bonus": total_ep, "completed_circles": completed}
+
+
+def _save_file_path(save_id: str) -> str:
+    return os.path.join(SAVES_DIR, f"{save_id}.json")
+
+
+def _list_save_files() -> list:
+    files = []
+    for name in os.listdir(SAVES_DIR):
+        if name.lower().endswith(".json"):
+            files.append(os.path.join(SAVES_DIR, name))
+    return files
+
+
+def _load_save_entry(file_path: str) -> dict | None:
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if not isinstance(data, dict):
+                return None
+            return data
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +354,87 @@ def lore_circles():
     data = request.get_json(force=True)
     skills = data.get("skills", [])
     return jsonify(compute_lore_circle_bonuses(skills))
+
+
+@app.route("/api/saves", methods=["GET"])
+def list_saves():
+    saves = []
+    for file_path in _list_save_files():
+        entry = _load_save_entry(file_path)
+        if not entry:
+            continue
+        saves.append({
+            "id": entry.get("id"),
+            "label": entry.get("label"),
+            "session": entry.get("session"),
+            "page": entry.get("page"),
+            "book_name": entry.get("book_name"),
+            "timestamp": entry.get("timestamp"),
+        })
+
+    saves.sort(key=lambda s: s.get("timestamp") or "")
+    return jsonify({"saves": saves})
+
+
+@app.route("/api/saves", methods=["POST"])
+def create_save():
+    data = request.get_json(force=True)
+    try:
+        session = str(data["session"]).strip()
+        page = str(data["page"]).strip()
+        state = data["state"]
+    except KeyError as exc:
+        return jsonify({"error": f"Missing field: {exc}"}), 400
+
+    if not session:
+        return jsonify({"error": "Session is required"}), 400
+    if not page:
+        return jsonify({"error": "Page is required"}), 400
+    if not isinstance(state, dict):
+        return jsonify({"error": "State must be an object"}), 400
+
+    book_number = state.get("book_number")
+    book = next((b for b in GAMEBOOK_METADATA if b["book_number"] == book_number), None)
+    book_name = book["book_name"] if book else "Unknown"
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    save_id = str(uuid.uuid4())
+    entry = {
+        "id": save_id,
+        "label": f"{book_name} — p.{page} — \"{session}\"",
+        "session": session,
+        "page": page,
+        "book_name": book_name,
+        "timestamp": timestamp,
+        "state": state,
+    }
+
+    with open(_save_file_path(save_id), "w", encoding="utf-8") as f:
+        json.dump(entry, f, indent=2, ensure_ascii=False)
+
+    return jsonify(entry), 201
+
+
+@app.route("/api/saves/<save_id>", methods=["GET"])
+def get_save(save_id: str):
+    path = _save_file_path(save_id)
+    if not os.path.exists(path):
+        return jsonify({"error": "Save not found"}), 404
+
+    entry = _load_save_entry(path)
+    if not entry:
+        return jsonify({"error": "Save is invalid"}), 500
+    return jsonify(entry)
+
+
+@app.route("/api/saves/<save_id>", methods=["DELETE"])
+def delete_save(save_id: str):
+    path = _save_file_path(save_id)
+    if not os.path.exists(path):
+        return jsonify({"error": "Save not found"}), 404
+
+    os.remove(path)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
