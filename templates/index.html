@@ -850,6 +850,21 @@
 </div>
 
 <!-- ===================================================== -->
+<!-- MODAL: WEAPONMASTERY                                  -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-weaponmastery">
+  <div class="modal">
+    <h2>Weaponmastery Selection</h2>
+    <p style="margin-bottom:12px;color:#aaa;font-size:0.9rem;">Select exactly 3 weapons to master.</p>
+    <div class="disc-grid" id="wm-weapons-grid" style="max-height: 50vh; overflow-y: auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmWeaponmastery()">Confirm</button>
+      <button class="btn btn-secondary" onclick="cancelWeaponmastery()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
 <!-- TOAST CONTAINER                                        -->
 <!-- ===================================================== -->
 <div id="toast-container"></div>
@@ -881,6 +896,7 @@ const DEFAULT_STATE = () => ({
   completed_circles: [],
   gold_adj_step: 1,
   weaponskill_weapon: null,
+  weaponmastery_weapons: [],
 });
 
 let state = DEFAULT_STATE();
@@ -895,7 +911,13 @@ let ccState = {
   disciplines: [],
   equipment: [],
   gold: null,
+  weaponskillWeapon: null,
+  weaponmasteryWeapons: [],
 };
+
+// Weaponmastery modal state
+let wmIsCC = false;
+let pendingWMWeapons = [];
 
 // Combat state
 let combatActive = false;
@@ -1052,6 +1074,8 @@ function renderSkillList(containerId, disciplines) {
     let bonusText = d.combat_bonus ? `<span class="skill-bonus">${d.combat_bonus}</span>` : "";
     if (active && d.name === "Weaponskill" && state.weaponskill_weapon) {
       bonusText = `<span class="skill-bonus">${d.combat_bonus} [${state.weaponskill_weapon}]</span>`;
+    } else if (active && d.name === "Weaponmastery" && state.weaponmastery_weapons && state.weaponmastery_weapons.length > 0) {
+      bonusText = `<span class="skill-bonus">${d.combat_bonus} [${state.weaponmastery_weapons.join(", ")}]</span>`;
     }
     
     div.innerHTML = `
@@ -1320,9 +1344,11 @@ function toggleSkill(name) {
   if (idx === -1) {
     state.skills.push(name);
     if (name === "Weaponskill") handleWeaponskill(false);
+    if (name === "Weaponmastery") openWeaponmasteryModal(false);
   } else {
     state.skills.splice(idx, 1);
     if (name === "Weaponskill") state.weaponskill_weapon = null;
+    if (name === "Weaponmastery") state.weaponmastery_weapons = [];
   }
   renderSkills();
   updateLoreCircles();
@@ -1355,6 +1381,97 @@ async function handleWeaponskill(isCC = false) {
   } catch(e) {
     console.error("Failed to roll weaponskill", e);
   }
+}
+
+// =============================================================================
+// WEAPONMASTERY
+// =============================================================================
+function openWeaponmasteryModal(isCC = false) {
+  wmIsCC = isCC;
+  pendingWMWeapons = [];
+  const weapons = ["Dagger", "Mace", "Bow", "Sword", "Warhammer", "Axe", "Short Sword", "Spear", "Quarterstaff", "Broadsword"];
+  const grid = document.getElementById("wm-weapons-grid");
+  grid.innerHTML = "";
+  
+  weapons.forEach(w => {
+    const div = document.createElement("div");
+    div.className = "disc-option";
+    div.innerHTML = `
+      <input type="checkbox" id="wm-cb-${w.trim().replace(/\s/g,'_')}" value="${w}" onchange="toggleWmWeapon(this)" />
+      <div class="disc-option-text"><strong>${w}</strong></div>
+    `;
+    div.onclick = (e) => {
+      if (e.target.tagName !== "INPUT") {
+        const cb = div.querySelector("input[type=checkbox]");
+        cb.checked = !cb.checked;
+        toggleWmWeapon(cb);
+        if (cb.checked) div.classList.add("selected"); else div.classList.remove("selected");
+      }
+    };
+    grid.appendChild(div);
+  });
+  
+  openModal("modal-weaponmastery");
+}
+
+function toggleWmWeapon(cb) {
+  if (cb.checked) {
+    if (pendingWMWeapons.length >= 3) {
+      cb.checked = false;
+      toast("You can only select exactly 3 weapons.", "error");
+    } else {
+      pendingWMWeapons.push(cb.value);
+    }
+  } else {
+    pendingWMWeapons = pendingWMWeapons.filter(w => w !== cb.value);
+  }
+}
+
+function confirmWeaponmastery() {
+  if (pendingWMWeapons.length !== 3) {
+    toast("You must select exactly 3 weapons.", "error");
+    return;
+  }
+  
+  if (wmIsCC) {
+    ccState.weaponmasteryWeapons = [...pendingWMWeapons];
+  } else {
+    state.weaponmastery_weapons = [...pendingWMWeapons];
+    const note = {
+      id: Date.now().toString(),
+      book_number: state.book_number,
+      page: "Skill Selection",
+      text: `Weaponmastery: Proficient with ${pendingWMWeapons.join(", ")}`
+    };
+    state.notes.push(note);
+    renderNotes();
+    saveStateToStorage();
+    renderSkills();
+  }
+  closeModal("modal-weaponmastery");
+}
+
+function cancelWeaponmastery() {
+  if (wmIsCC) {
+    ccState.disciplines = ccState.disciplines.filter(d => d !== "Weaponmastery");
+    ccState.weaponmasteryWeapons = [];
+    const optId = "disc-opt-Weaponmastery";
+    const cbId  = "disc-cb-Weaponmastery";
+    const cb = document.getElementById(cbId);
+    if(cb) cb.checked = false;
+    const opt = document.getElementById(optId);
+    if(opt) opt.classList.remove("selected");
+    
+    const req = getRequiredDisciplineCount();
+    const hint = document.getElementById("disc-count-hint");
+    if(hint) hint.textContent = `${ccState.disciplines.length}/${req} selected.`;
+  } else {
+    const idx = state.skills.indexOf("Weaponmastery");
+    if (idx !== -1) state.skills.splice(idx, 1);
+    state.weaponmastery_weapons = [];
+    renderSkills();
+  }
+  closeModal("modal-weaponmastery");
 }
 
 // =============================================================================
@@ -1705,7 +1822,7 @@ function deleteSave(id) {
 // CHARACTER CREATION WIZARD
 // =============================================================================
 function openCharCreateModal() {
-  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null, weaponskillWeapon: null };
+  ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null, weaponskillWeapon: null, weaponmasteryWeapons: [] };
   document.getElementById("new-char-name").value = "";
   document.getElementById("new-char-book").value = "";
   document.getElementById("new-cs-val").textContent = "—";
@@ -1852,10 +1969,12 @@ function toggleCCDiscipline(name) {
     ccState.disciplines.push(name);
     opt.classList.add("selected");
     if (name === "Weaponskill") handleWeaponskill(true);
+    if (name === "Weaponmastery") openWeaponmasteryModal(true);
   } else {
     ccState.disciplines = ccState.disciplines.filter(d => d !== name);
     opt.classList.remove("selected");
     if (name === "Weaponskill") ccState.weaponskillWeapon = null;
+    if (name === "Weaponmastery") ccState.weaponmasteryWeapons = [];
   }
   document.getElementById("disc-count-hint").textContent =
     `${ccState.disciplines.length}/${req} selected.`;
@@ -1894,6 +2013,7 @@ function finalizeCharacter() {
   state.gold = ccState.gold;
   state.skills = [...ccState.disciplines];
   state.weaponskill_weapon = ccState.weaponskillWeapon;
+  state.weaponmastery_weapons = [...(ccState.weaponmasteryWeapons || [])];
   
   if (ccState.weaponskillWeapon) {
     state.notes.push({
@@ -1901,6 +2021,15 @@ function finalizeCharacter() {
       book_number: state.book_number,
       page: "Character Creation",
       text: `Weaponskill: Proficient with ${ccState.weaponskillWeapon}`
+    });
+  }
+
+  if (ccState.weaponmasteryWeapons && ccState.weaponmasteryWeapons.length > 0) {
+    state.notes.push({
+      id: Date.now().toString() + "_wm",
+      book_number: state.book_number,
+      page: "Character Creation",
+      text: `Weaponmastery: Proficient with ${ccState.weaponmasteryWeapons.join(", ")}`
     });
   }
 

@@ -73,3 +73,21 @@ Sommerswerd checkbox should only be available if the player has the Sommerswerd 
       - **else** if the player has the Kai discipline of Weaponskill with the selected weapon, add 2 CS
 
 If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to say 'Sommerswerd'
+
+
+# Book switching logic
+- The UI should allow the player to change books to another book (next_book), with the following rules:
+  - next_book must be after the current book in the Gamebook_Metadata as given in `Instructions.md`
+  - The current book should be added to a list of completed books
+- When changing book, apply the following logic:
+  - **If** next_book.suberies == 'Kai':
+    - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
+    - Allow the user to choose an additional Kai discipline as per the rules at character creation
+  - **If** next_book.suberies == 'Magnakai':
+    - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
+    - Allow the user to choose an additional Magnakai discipline as per the rules at character creation
+      - **If** the player already has Weaponmastery
+      - **then** allow them to add an additional weapon to the list
+      - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
+  - **If** next_book.suberies == 'Grand Master':
+    - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
