@@ -84,10 +84,39 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
     - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
     - Allow the user to choose an additional Kai discipline as per the rules at character creation
   - **If** next_book.suberies == 'Magnakai':
+    - **If** the current book subseries == 'Kai':
+      - All weapons and backpack items can be kept
+      - Only the following special items can be carried over to the new book (other should be removed and the player informed):
+        - (Kai) Shield
+        - Crystal Star Pendant
+        - (Battered) Padded Leather Waistcoat
+        - Helmet
+        - Chainmail Waistcoat
+        - Sommerswerd
+        - Firesphere
+        - Silver Helm
+        - Dagger of Vashna
+        - Herb Pad
+        - Canteen of Water
+        - Jeweled Mace
     - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
-    - Allow the user to choose an additional Magnakai discipline as per the rules at character creation
-      - **If** the player already has Weaponmastery
-      - **then** allow them to add an additional weapon to the list
-      - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
+    - **If** the current book subseries == 'Magnakai':
+      - Allow the user to choose an additional Magnakai discipline as per the rules at character creation
+        - **If** the player already has Weaponmastery
+       - **then** allow them to add an additional weapon to the list
+       - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
   - **If** next_book.suberies == 'Grand Master':
+    - **If** the current book subseries == 'Magnakai' or 'Kai':
+      - All weapons and backpack items can be kept
+      - Only the following special items can be carried over to the new book (other should be removed and the player informed):
+        - Crystal Star Pendant
+        - Sommerswerd
+        - Silver Helm
+        - Dagger of Vashna
+        - Jeweled Mace
+        - Silver Bow of Duadon
+        - Helshezag
+        - Kagonite Chainmail
     - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
+    - **If** the current book subseries == 'Grand Master':
+      - Allow the player to choose an additional Grandmaster discipline as per the character creation rules

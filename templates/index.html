@@ -459,6 +459,13 @@
           <option value="">— select book —</option>
         </select>
       </div>
+      <div class="form-row" id="completed-books-row" style="display:none;">
+        <label>Completed Books</label>
+        <div id="completed-books-display" style="font-size:0.82rem;color:#888;line-height:1.6;"></div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-secondary btn-sm" onclick="openBookSwitchModal()" id="btn-change-book">&#x21D2; Change Book</button>
+      </div>
     </div>
 
     <div class="panel">
@@ -865,6 +872,73 @@
 </div>
 
 <!-- ===================================================== -->
+<!-- MODAL: BOOK SWITCH                                     -->
+<!-- ===================================================== -->
+<div class="modal-overlay" id="modal-book-switch">
+  <div class="modal">
+    <h2>&#x21D2; Change Book</h2>
+
+    <!-- Step: book selection -->
+    <div id="bs-step-book">
+      <p style="color:#aaa;font-size:0.88rem;margin-bottom:12px;">Select the next book in your adventure. Only books after your current book are available.</p>
+      <div class="form-row">
+        <label>Next Book</label>
+        <select id="bs-book-select" onchange="onBSBookSelect()">
+          <option value="">— select book —</option>
+        </select>
+      </div>
+      <div id="bs-book-info" style="margin-top:8px;font-size:0.85rem;color:#aaa;min-height:20px;"></div>
+    </div>
+
+    <!-- Step: gold roll -->
+    <div id="bs-step-gold" class="hidden">
+      <h3 style="margin-bottom:10px;">Starting Gold Bonus</h3>
+      <p style="color:#aaa;font-size:0.88rem;margin-bottom:12px;">Roll 1D10 + 10 gold (maximum 50 total).</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <span class="rolled-val" id="bs-gold-val">—</span>
+        <button class="btn btn-secondary btn-sm" onclick="bsRollGold()">Roll</button>
+      </div>
+      <div id="bs-gold-result" style="font-size:0.85rem;color:#aaa;min-height:20px;"></div>
+    </div>
+
+    <!-- Step: special item restrictions -->
+    <div id="bs-step-items" class="hidden">
+      <h3 style="margin-bottom:10px;">Special Item Restrictions</h3>
+      <p style="color:#aaa;font-size:0.88rem;margin-bottom:12px;">All weapons and backpack items can be kept. Only certain special items carry over to the new series.</p>
+      <div id="bs-items-removed-list" style="margin-bottom:10px;"></div>
+      <div id="bs-items-kept-list"></div>
+    </div>
+
+    <!-- Step: discipline selection -->
+    <div id="bs-step-discipline" class="hidden">
+      <h3 id="bs-disc-title" style="margin-bottom:10px;">Choose Additional Discipline</h3>
+      <p id="bs-disc-hint" style="font-size:0.82rem;color:#aaa;margin-bottom:10px;">Select 1 new discipline to learn.</p>
+      <div class="disc-grid" id="bs-disc-selector" style="max-height:50vh;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Step: add 1 weapon to existing Weaponmastery -->
+    <div id="bs-step-weapon-extra" class="hidden">
+      <h3 style="margin-bottom:10px;">Weaponmastery: Add Weapon</h3>
+      <p style="font-size:0.82rem;color:#aaa;margin-bottom:10px;">You already have Weaponmastery. Select 1 additional weapon to add to your mastery list.</p>
+      <div class="disc-grid" id="bs-wm-extra-selector" style="max-height:40vh;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Step: choose weapons for newly selected Weaponmastery -->
+    <div id="bs-step-weapon-newwm" class="hidden">
+      <h3 style="margin-bottom:10px;">Weaponmastery: Select Weapons</h3>
+      <p id="bs-wm-newwm-hint" style="font-size:0.82rem;color:#aaa;margin-bottom:10px;"></p>
+      <div class="disc-grid" id="bs-wm-newwm-selector" style="max-height:40vh;overflow-y:auto;"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="bs-prev-btn" onclick="bsPrev()" style="display:none;">Back</button>
+      <button class="btn btn-primary" id="bs-next-btn" onclick="bsNext()">Next</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-book-switch')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== -->
 <!-- TOAST CONTAINER                                        -->
 <!-- ===================================================== -->
 <div id="toast-container"></div>
@@ -897,6 +971,7 @@ const DEFAULT_STATE = () => ({
   gold_adj_step: 1,
   weaponskill_weapon: null,
   weaponmastery_weapons: [],
+  completed_books: [],     // list of completed book numbers
 });
 
 let state = DEFAULT_STATE();
@@ -1010,6 +1085,7 @@ function renderCharSheet() {
   document.getElementById("char-name").value = state.name;
   const bookSel = document.getElementById("char-book");
   bookSel.value = state.book_number || "";
+  bookSel.disabled = hasChar;
 
   document.getElementById("cs-max-val").textContent = state.cs_max;
   document.getElementById("cs-current-val").textContent = state.cs_current;
@@ -1028,6 +1104,21 @@ function renderCharSheet() {
   const epBarPct = state.ep_max > 0 ? Math.min(100, (state.ep_current / state.ep_max) * 100) : 0;
   document.getElementById("cs-bar").style.width = csBarPct + "%";
   document.getElementById("ep-bar").style.width = epBarPct + "%";
+
+  // Completed books display
+  const completedRow = document.getElementById('completed-books-row');
+  const completedDisplay = document.getElementById('completed-books-display');
+  if (completedRow && completedDisplay) {
+    if (state.completed_books && state.completed_books.length > 0) {
+      completedRow.style.display = '';
+      completedDisplay.textContent = state.completed_books.map(bn => {
+        const b = gameData ? gameData.books.find(x => x.book_number === bn) : null;
+        return b ? `#${bn} ${b.book_name}` : `Book ${bn}`;
+      }).join(', ');
+    } else {
+      completedRow.style.display = 'none';
+    }
+  }
 
   updateRankBadge();
 }
@@ -1329,7 +1420,15 @@ function charNameChanged() {
 }
 
 function charBookChanged() {
-  const val = document.getElementById("char-book").value;
+  // Book changes after character creation must go through the Change Book flow.
+  const sel = document.getElementById("char-book");
+  if (state.book_number !== null) {
+    sel.value = state.book_number;
+    toast("Use 'Change Book' to switch books.", "info");
+    return;
+  }
+
+  const val = sel.value;
   state.book_number = val ? parseInt(val) : null;
   renderCharSheet();
   renderSkills();
@@ -1724,6 +1823,506 @@ function logCombat(msg) {
   const log = document.getElementById("combat-log");
   log.innerHTML += `<p>${msg}</p>`;
   log.scrollTop = log.scrollHeight;
+}
+
+// =============================================================================
+// BOOK SWITCH
+// =============================================================================
+
+// Special items permitted to carry over when entering Magnakai (from Kai)
+const MAGNAKAI_ALLOWED_SPECIAL_ITEMS = [
+  "shield", "crystal star pendant", "padded leather waistcoat",
+  "helmet", "chainmail waistcoat", "sommerswerd", "firesphere",
+  "silver helm", "dagger of vashna", "herb pad", "canteen of water", "jeweled mace",
+];
+
+// Special items permitted to carry over when entering Grand Master (from Kai or Magnakai)
+const GRAND_MASTER_ALLOWED_SPECIAL_ITEMS = [
+  "crystal star pendant", "sommerswerd", "silver helm", "dagger of vashna",
+  "jeweled mace", "silver bow of duadon", "helshezag", "kagonite chainmail",
+];
+
+const BS_WM_WEAPONS_LIST = [
+  "Dagger", "Mace", "Bow", "Sword", "Warhammer",
+  "Axe", "Short Sword", "Spear", "Quarterstaff", "Broadsword",
+];
+
+// Book-switch wizard state
+let bsState = {
+  nextBook: null,
+  goldRoll: null,
+  newGold: null,
+  removedItems: [],
+  keptItems: [],
+  discipline: null,
+  extraWmWeapon: null,   // weapon added to existing Weaponmastery list
+  newWmWeapons: [],      // weapons chosen for a newly selected Weaponmastery
+  steps: [],
+  currentStepIdx: 0,
+};
+
+function openBookSwitchModal() {
+  if (!state.book_number) { toast("No active character.", "error"); return; }
+  const availableBooks = gameData.books.filter(b => b.book_number > state.book_number);
+  if (availableBooks.length === 0) { toast("No further books are available.", "info"); return; }
+
+  bsState = {
+    nextBook: null, goldRoll: null, newGold: null,
+    removedItems: [], keptItems: [],
+    discipline: null, extraWmWeapon: null, newWmWeapons: [],
+    steps: ['book'], currentStepIdx: 0,
+  };
+
+  const sel = document.getElementById('bs-book-select');
+  sel.innerHTML = '<option value="">— select book —</option>';
+  availableBooks.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.book_number;
+    opt.textContent = `${b.book_number}. ${b.book_name} (${b.subseries})`;
+    sel.appendChild(opt);
+  });
+  sel.value = '';
+  document.getElementById('bs-book-info').innerHTML = '';
+
+  showBSStep();
+  openModal('modal-book-switch');
+}
+
+function onBSBookSelect() {
+  const val = document.getElementById('bs-book-select').value;
+  if (!val) { bsState.nextBook = null; document.getElementById('bs-book-info').innerHTML = ''; return; }
+  bsState.nextBook = gameData.books.find(b => b.book_number === parseInt(val));
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  document.getElementById('bs-book-info').innerHTML =
+    `<strong>${curr.book_name}</strong> (${curr.subseries}) &nbsp;&#x21D2;&nbsp; <strong>${bsState.nextBook.book_name}</strong> (${bsState.nextBook.subseries})`;
+}
+
+// Build the ordered list of steps based on the chosen transition
+function determineBSSteps() {
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  const currSub = curr.subseries;
+  const nextSub = bsState.nextBook.subseries;
+
+  let steps = ['book', 'gold'];
+
+  // Item filter is needed for Kai→Magnakai or (Kai|Magnakai)→Grand Master
+  const needsItemFilter =
+    (nextSub === 'Magnakai' && currSub === 'Kai') ||
+    (nextSub === 'Grand Master' && (currSub === 'Kai' || currSub === 'Magnakai'));
+
+  if (needsItemFilter) {
+    computeBSRemovedItems(nextSub);
+    steps.push('items');
+  }
+
+  // Discipline selection only for same-subseries transitions (not New Order)
+  if (currSub === nextSub && currSub !== 'New Order') {
+    steps.push('discipline');
+    // Weapon steps are injected dynamically after the discipline is chosen
+  }
+
+  bsState.steps = steps;
+}
+
+// Determine which special items are removed / kept for the transition
+function computeBSRemovedItems(nextSubseries) {
+  const allowed = nextSubseries === 'Magnakai'
+    ? MAGNAKAI_ALLOWED_SPECIAL_ITEMS
+    : GRAND_MASTER_ALLOWED_SPECIAL_ITEMS;
+
+  bsState.removedItems = [];
+  bsState.keptItems = [];
+
+  state.special_items.forEach(item => {
+    // Normalise: lowercase and strip parentheses so "(Kai) Shield" matches "shield"
+    const norm = item.name.toLowerCase().replace(/[()]/g, '').trim();
+    const isAllowed = allowed.some(a => norm.includes(a));
+    if (isAllowed) bsState.keptItems.push(item.name);
+    else bsState.removedItems.push(item.name);
+  });
+}
+
+// Show the current wizard step
+function showBSStep() {
+  const allStepIds = ['book', 'gold', 'items', 'discipline', 'weapon-extra', 'weapon-newwm'];
+  allStepIds.forEach(s => {
+    const el = document.getElementById('bs-step-' + s);
+    if (el) el.classList.add('hidden');
+  });
+
+  const currentStep = bsState.steps[bsState.currentStepIdx];
+  const el = document.getElementById('bs-step-' + currentStep);
+  if (el) el.classList.remove('hidden');
+
+  document.getElementById('bs-prev-btn').style.display =
+    bsState.currentStepIdx > 0 ? 'inline-block' : 'none';
+
+  const isLast = bsState.currentStepIdx === bsState.steps.length - 1;
+  document.getElementById('bs-next-btn').textContent = isLast ? 'Confirm Change' : 'Next';
+
+  // Render dynamic content for each step
+  if (currentStep === 'items')          renderBSItemsStep();
+  if (currentStep === 'discipline')     renderBSDisciplineStep();
+  if (currentStep === 'weapon-extra')   renderBSWeaponExtraStep();
+  if (currentStep === 'weapon-newwm')   renderBSWeaponNewWMStep();
+}
+
+function bsNext() {
+  const currentStep = bsState.steps[bsState.currentStepIdx];
+
+  // ── Step: book ──────────────────────────────────────────────────────────
+  if (currentStep === 'book') {
+    if (!bsState.nextBook) { toast("Select a book to continue.", "error"); return; }
+    determineBSSteps();        // rebuild steps based on chosen transition
+    bsState.currentStepIdx = 1; // advance to 'gold' (always index 1)
+    showBSStep();
+    return;
+  }
+
+  // ── Step: gold ──────────────────────────────────────────────────────────
+  if (currentStep === 'gold') {
+    if (bsState.goldRoll === null) { toast("Roll your gold bonus first.", "error"); return; }
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // ── Step: items ─────────────────────────────────────────────────────────
+  if (currentStep === 'items') {
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // ── Step: discipline ────────────────────────────────────────────────────
+  if (currentStep === 'discipline') {
+    const grid = document.getElementById('bs-disc-selector');
+    const hasOptions = !!grid.querySelector('.disc-option');
+    if (hasOptions && !bsState.discipline) {
+      toast("Select a discipline to learn.", "error"); return;
+    }
+
+    const curr = gameData.books.find(b => b.book_number === state.book_number);
+    const currSub = curr.subseries;
+    const nextSub = bsState.nextBook.subseries;
+
+    // For Magnakai→Magnakai: inject weapon step(s) after discipline
+    if (currSub === 'Magnakai' && nextSub === 'Magnakai') {
+      const hasExistingWM = state.skills.includes('Weaponmastery');
+      const choseWM = bsState.discipline === 'Weaponmastery';
+      const insertAt = bsState.currentStepIdx + 1;
+      if (choseWM) {
+        bsState.steps.splice(insertAt, 0, 'weapon-newwm');
+      } else if (hasExistingWM) {
+        bsState.steps.splice(insertAt, 0, 'weapon-extra');
+      }
+    }
+
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // ── Step: weapon-extra ──────────────────────────────────────────────────
+  if (currentStep === 'weapon-extra') {
+    const grid = document.getElementById('bs-wm-extra-selector');
+    const hasOptions = !!grid.querySelector('.disc-option');
+    if (hasOptions && !bsState.extraWmWeapon) {
+      toast("Select 1 weapon to add.", "error"); return;
+    }
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // ── Step: weapon-newwm ──────────────────────────────────────────────────
+  if (currentStep === 'weapon-newwm') {
+    const completedMagnakaiCount = (state.completed_books || []).filter(bn => {
+      const b = gameData.books.find(x => x.book_number === bn);
+      return b && b.subseries === 'Magnakai';
+    }).length;
+    const requiredWeapons = 3 + completedMagnakaiCount;
+    if (bsState.newWmWeapons.length !== requiredWeapons) {
+      toast(`Select exactly ${requiredWeapons} weapon${requiredWeapons !== 1 ? 's' : ''}.`, "error");
+      return;
+    }
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // Fallback
+  bsState.currentStepIdx++;
+  if (bsState.currentStepIdx >= bsState.steps.length) finalizeBookSwitch();
+  else showBSStep();
+}
+
+function bsPrev() {
+  if (bsState.currentStepIdx > 0) {
+    bsState.currentStepIdx--;
+    showBSStep();
+  }
+}
+
+async function bsRollGold() {
+  const resp = await fetch('/api/roll_random');
+  const data = await resp.json();
+  const roll = data.value + 1; // 1–10
+  bsState.goldRoll = roll;
+  const added = roll + 10;
+  bsState.newGold = Math.min(50, state.gold + added);
+  document.getElementById('bs-gold-val').textContent = roll;
+  document.getElementById('bs-gold-result').innerHTML =
+    `Roll: <strong>${roll}</strong> + 10 = +${added} gold &nbsp;|&nbsp; ` +
+    `Current gold: ${state.gold} &rarr; New total: <strong style="color:var(--gold)">${bsState.newGold}</strong> / 50`;
+}
+
+function renderBSItemsStep() {
+  const removedEl = document.getElementById('bs-items-removed-list');
+  const keptEl    = document.getElementById('bs-items-kept-list');
+
+  if (bsState.removedItems.length > 0) {
+    let html = '<p style="color:var(--red);font-weight:bold;margin-bottom:6px;">&#9888; The following special items will be removed:</p>';
+    bsState.removedItems.forEach(name => {
+      html += `<div class="inv-item"><span>${name}</span><span class="item-tag" style="background:#3a0a0a;color:var(--red);">Removed</span></div>`;
+    });
+    removedEl.innerHTML = html;
+  } else {
+    removedEl.innerHTML = '<p style="color:var(--green);font-size:0.85rem;">&#10003; All your special items can be carried over.</p>';
+  }
+
+  if (bsState.keptItems.length > 0) {
+    let html = '<p style="color:var(--green);font-weight:bold;margin-bottom:6px;margin-top:10px;">Special items you may keep:</p>';
+    bsState.keptItems.forEach(name => {
+      html += `<div class="inv-item"><span>${name}</span><span class="item-tag" style="background:#0a2a0a;color:var(--green);">Kept</span></div>`;
+    });
+    keptEl.innerHTML = html;
+  } else {
+    keptEl.innerHTML = '';
+  }
+}
+
+function renderBSDisciplineStep() {
+  const curr = gameData.books.find(b => b.book_number === state.book_number);
+  const currSub = curr.subseries;
+
+  let disciplines = [];
+  let title = 'Choose Additional Discipline';
+  let hint  = 'Select 1 new discipline to learn.';
+
+  if (currSub === 'Kai') {
+    disciplines = gameData.kai_disciplines;
+    title = 'Choose Additional Kai Discipline';
+  } else if (currSub === 'Magnakai') {
+    disciplines = gameData.magnakai_disciplines;
+    title = 'Choose Additional Magnakai Discipline';
+    if (state.skills.includes('Weaponmastery')) {
+      hint = 'Select 1 new discipline. You will also be able to add 1 weapon to your Weaponmastery list.';
+    }
+  } else if (currSub === 'Grand Master') {
+    disciplines = gameData.grand_master_disciplines;
+    title = 'Choose Additional Grand Master Discipline';
+  }
+
+  document.getElementById('bs-disc-title').textContent = title;
+  document.getElementById('bs-disc-hint').textContent  = hint;
+
+  const grid = document.getElementById('bs-disc-selector');
+  grid.innerHTML = '';
+  bsState.discipline = null;
+
+  disciplines.forEach(d => {
+    if (state.skills.includes(d.name)) return; // already learned
+
+    const safeId = d.name.replace(/[\s-]/g, '_');
+    const div = document.createElement('div');
+    div.className = 'disc-option';
+    div.id = 'bs-disc-opt-' + safeId;
+    div.innerHTML = `
+      <input type="radio" name="bs-disc-rb" value="${d.name}" style="width:auto;" />
+      <div class="disc-option-text">
+        <strong>${d.name}</strong>
+        <small>${d.combat_bonus || ''}</small>
+      </div>
+    `;
+    div.onclick = () => {
+      div.querySelector('input').checked = true;
+      onBSDisciplineSelect(d.name);
+    };
+    div.querySelector('input').onchange = () => onBSDisciplineSelect(d.name);
+    grid.appendChild(div);
+  });
+
+  if (!grid.querySelector('.disc-option')) {
+    grid.innerHTML = '<p style="color:#666;font-size:0.85rem;">All disciplines in this series have already been learned!</p>';
+  }
+}
+
+function onBSDisciplineSelect(name) {
+  bsState.discipline = name;
+  document.querySelectorAll('#bs-disc-selector .disc-option').forEach(opt => opt.classList.remove('selected'));
+  const el = document.getElementById('bs-disc-opt-' + name.replace(/[\s-]/g, '_'));
+  if (el) el.classList.add('selected');
+}
+
+function renderBSWeaponExtraStep() {
+  const grid = document.getElementById('bs-wm-extra-selector');
+  grid.innerHTML = '';
+  bsState.extraWmWeapon = null;
+
+  const existing  = state.weaponmastery_weapons || [];
+  const available = BS_WM_WEAPONS_LIST.filter(w => !existing.includes(w));
+
+  if (available.length === 0) {
+    grid.innerHTML = '<p style="color:#aaa;font-size:0.85rem;">All weapons are already mastered — no additional weapon needed.</p>';
+    bsState.extraWmWeapon = '__none__';
+    return;
+  }
+
+  available.forEach(w => {
+    const safeId = 'bs-wme-' + w.replace(/\s/g, '_');
+    const div = document.createElement('div');
+    div.className = 'disc-option';
+    div.id = safeId;
+    div.innerHTML = `
+      <input type="radio" name="bs-wm-extra-rb" value="${w}" style="width:auto;" />
+      <div class="disc-option-text"><strong>${w}</strong></div>
+    `;
+    div.onclick = () => {
+      div.querySelector('input').checked = true;
+      onBSExtraWeaponSelect(w);
+    };
+    div.querySelector('input').onchange = () => onBSExtraWeaponSelect(w);
+    grid.appendChild(div);
+  });
+}
+
+function onBSExtraWeaponSelect(w) {
+  bsState.extraWmWeapon = w;
+  document.querySelectorAll('#bs-wm-extra-selector .disc-option').forEach(opt => opt.classList.remove('selected'));
+  const el = document.getElementById('bs-wme-' + w.replace(/\s/g, '_'));
+  if (el) el.classList.add('selected');
+}
+
+function renderBSWeaponNewWMStep() {
+  const completedMagnakaiCount = (state.completed_books || []).filter(bn => {
+    const b = gameData.books.find(x => x.book_number === bn);
+    return b && b.subseries === 'Magnakai';
+  }).length;
+  const requiredWeapons = 3 + completedMagnakaiCount;
+
+  document.getElementById('bs-wm-newwm-hint').textContent =
+    `Select ${requiredWeapons} weapon${requiredWeapons !== 1 ? 's' : ''} to master ` +
+    `(3 base + ${completedMagnakaiCount} for completed Magnakai book${completedMagnakaiCount !== 1 ? 's' : ''}).`;
+
+  const grid = document.getElementById('bs-wm-newwm-selector');
+  grid.innerHTML = '';
+  bsState.newWmWeapons = [];
+
+  BS_WM_WEAPONS_LIST.forEach(w => {
+    const cbId  = 'bs-wmnw-cb-' + w.replace(/\s/g, '_');
+    const divId = 'bs-wmnw-'    + w.replace(/\s/g, '_');
+    const div = document.createElement('div');
+    div.className = 'disc-option';
+    div.id = divId;
+    div.innerHTML = `
+      <input type="checkbox" id="${cbId}" value="${w}" style="width:auto;" />
+      <div class="disc-option-text"><strong>${w}</strong></div>
+    `;
+    const cb = div.querySelector('input');
+    const toggle = () => toggleBSNewWMWeapon(cb, requiredWeapons);
+    cb.onchange = toggle;
+    div.onclick = (e) => { if (e.target.tagName !== 'INPUT') { cb.checked = !cb.checked; toggle(); } };
+    grid.appendChild(div);
+  });
+}
+
+function toggleBSNewWMWeapon(cb, requiredWeapons) {
+  const div = cb.closest('.disc-option');
+  if (cb.checked) {
+    if (bsState.newWmWeapons.length >= requiredWeapons) {
+      cb.checked = false;
+      toast(`Select exactly ${requiredWeapons} weapons.`, "error");
+      return;
+    }
+    bsState.newWmWeapons.push(cb.value);
+    if (div) div.classList.add('selected');
+  } else {
+    bsState.newWmWeapons = bsState.newWmWeapons.filter(w => w !== cb.value);
+    if (div) div.classList.remove('selected');
+  }
+}
+
+function finalizeBookSwitch() {
+  const nextBook = bsState.nextBook;
+
+  // 1. Mark current book as completed
+  if (!state.completed_books) state.completed_books = [];
+  if (!state.completed_books.includes(state.book_number)) {
+    state.completed_books.push(state.book_number);
+  }
+
+  // 2. Switch to next book
+  state.book_number = nextBook.book_number;
+
+  // 3. Apply gold bonus
+  if (bsState.newGold !== null) state.gold = bsState.newGold;
+
+  // 4. Remove disallowed special items
+  if (bsState.removedItems.length > 0) {
+    const toRemove = new Set(bsState.removedItems);
+    state.special_items = state.special_items.filter(item => !toRemove.has(item.name));
+  }
+
+  // 5. Add new discipline (and trigger weapon roll for Weaponskill)
+  if (bsState.discipline && !state.skills.includes(bsState.discipline)) {
+    state.skills.push(bsState.discipline);
+    if (bsState.discipline === 'Weaponskill') handleWeaponskill(false);
+  }
+
+  // 6a. Set weapons for newly chosen Weaponmastery
+  if (bsState.newWmWeapons.length > 0) {
+    state.weaponmastery_weapons = [...bsState.newWmWeapons];
+    state.notes.push({
+      id: Date.now().toString() + '_bswm',
+      book_number: state.book_number,
+      page: "Book Change",
+      text: `Weaponmastery weapons: ${bsState.newWmWeapons.join(', ')}`,
+    });
+  }
+
+  // 6b. Add extra weapon to existing Weaponmastery
+  if (bsState.extraWmWeapon && bsState.extraWmWeapon !== '__none__') {
+    if (!state.weaponmastery_weapons) state.weaponmastery_weapons = [];
+    state.weaponmastery_weapons.push(bsState.extraWmWeapon);
+    state.notes.push({
+      id: Date.now().toString() + '_bswme',
+      book_number: state.book_number,
+      page: "Book Change",
+      text: `Weaponmastery expanded: added ${bsState.extraWmWeapon}`,
+    });
+  }
+
+  saveStateToStorage();
+  closeModal('modal-book-switch');
+  renderAll();
+
+  // Toast summary
+  const goldAdded = bsState.goldRoll !== null ? bsState.goldRoll + 10 : 0;
+  toast(`Book changed to: ${nextBook.book_name} (${nextBook.subseries})`, "success");
+  if (goldAdded > 0) setTimeout(() => toast(`+${goldAdded} gold → ${state.gold} total`, "info"), 250);
+  if (bsState.discipline) setTimeout(() => toast(`New discipline: ${bsState.discipline}`, "success"), 500);
+  if (bsState.extraWmWeapon && bsState.extraWmWeapon !== '__none__') {
+    setTimeout(() => toast(`Weaponmastery expanded: ${bsState.extraWmWeapon} added`, "success"), 750);
+  }
+  if (bsState.removedItems.length > 0) {
+    setTimeout(() => toast(`Special items removed: ${bsState.removedItems.join(', ')}`, "error"), 1000);
+  }
 }
 
 // =============================================================================
