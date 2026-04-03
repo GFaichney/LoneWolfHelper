@@ -972,6 +972,7 @@ const DEFAULT_STATE = () => ({
   weaponskill_weapon: null,
   weaponmastery_weapons: [],
   completed_books: [],     // list of completed book numbers
+  backpack_max: 8,
 });
 
 let state = DEFAULT_STATE();
@@ -1188,6 +1189,12 @@ function renderInventory() {
   document.getElementById("meals-val").textContent = state.meals;
 }
 
+function getBackpackMax() {
+  if (typeof state.backpack_max === "number" && state.backpack_max > 0) return state.backpack_max;
+  const book = gameData?.books?.find(b => b.book_number === state.book_number);
+  return book?.subseries === "Grand Master" ? 10 : 8;
+}
+
 function renderWeapons() {
   const list = document.getElementById("weapons-list");
   list.innerHTML = "";
@@ -1203,7 +1210,8 @@ function renderBackpack() {
   state.backpack.forEach((item, i) => {
     list.appendChild(makeInvItem(item.name, "Backpack", () => removeBackpackItem(i)));
   });
-  document.getElementById("backpack-count").textContent = `(${state.backpack.length}/8)`;
+  const max = getBackpackMax();
+  document.getElementById("backpack-count").textContent = `(${state.backpack.length}/${max})`;
 }
 
 function renderSpecialItems() {
@@ -1369,7 +1377,8 @@ function addBackpackItem() {
   const input = document.getElementById("backpack-input");
   const name = input.value.trim();
   if (!name) return;
-  if (state.backpack.length >= 8) { toast("Backpack is full (max 8).", "error"); return; }
+  const max = getBackpackMax();
+  if (state.backpack.length >= max) { toast(`Backpack is full (max ${max}).`, "error"); return; }
   state.backpack.push({name});
   input.value = "";
   renderBackpack();
@@ -2363,6 +2372,11 @@ function finalizeBookSwitch() {
   // 2. Switch to next book
   state.book_number = nextBook.book_number;
 
+  // Grand Master books increase backpack capacity
+  if (nextBook.subseries === "Grand Master") {
+    state.backpack_max = 10;
+  }
+
   // 3. Apply gold bonus
   if (bsState.newGold !== null) state.gold = bsState.newGold;
 
@@ -2740,6 +2754,7 @@ function finalizeCharacter() {
   state.skills = [...ccState.disciplines];
   state.weaponskill_weapon = ccState.weaponskillWeapon;
   state.weaponmastery_weapons = [...(ccState.weaponmasteryWeapons || [])];
+  state.backpack_max = ccState.book?.subseries === "Grand Master" ? 10 : 8;
   
   if (ccState.weaponskillWeapon) {
     state.notes.push({

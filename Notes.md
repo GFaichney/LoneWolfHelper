@@ -107,6 +107,7 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
        - **then** allow them to add an additional weapon to the list
        - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
   - **If** next_book.suberies == 'Grand Master':
+    - Change the maximum backpack size to 10 items
     - **If** the current book subseries == 'Magnakai' or 'Kai':
       - Allow the selection of 4 Grand Master disciplines as per Character_Creation_Logic
       - All weapons and backpack items can be kept
