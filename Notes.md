@@ -125,3 +125,6 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
       - Allow the player to choose an additional Grandmaster discipline as per the character creation rules
 
 
+## Kai Monastery
+- Any number of backpack items, weapons and special items can be transferred to the Kai Monastery inventory. This can only be done when switching books
+- Any number of backpack items, weapons and special items can be transferred from the Kai Monastery inventory. This can only be done when switching books. Backpack, special item and weapon limits must still be observed

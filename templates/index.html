@@ -626,6 +626,20 @@
       </div>
     </div>
 
+    <div class="panel">
+      <h2>Kai Monastery (Read-only)</h2>
+      <p style="color:#888;font-size:0.82rem;margin-bottom:10px;">Items can only be transferred during book switching.</p>
+
+      <h3 style="margin-top:0;">Weapons</h3>
+      <div id="monastery-weapons-list"><p style="color:#666;font-size:0.85rem;">No stored weapons.</p></div>
+
+      <h3>Backpack Items</h3>
+      <div id="monastery-backpack-list"><p style="color:#666;font-size:0.85rem;">No stored backpack items.</p></div>
+
+      <h3>Special Items</h3>
+      <div id="monastery-special-list"><p style="color:#666;font-size:0.85rem;">No stored special items.</p></div>
+    </div>
+
   </div>
 
   <!-- ======================================================= -->
@@ -909,6 +923,53 @@
       <div id="bs-items-kept-list"></div>
     </div>
 
+    <!-- Step: Kai Monastery transfers -->
+    <div id="bs-step-monastery" class="hidden">
+      <h3 style="margin-bottom:10px;">Kai Monastery Transfers</h3>
+      <p style="color:#aaa;font-size:0.88rem;margin-bottom:12px;">
+        Move any number of items to or from Kai Monastery. Transfers are only available during book switching.
+      </p>
+      <p style="color:#888;font-size:0.8rem;margin-bottom:12px;">
+        Limits are enforced when moving items back to your inventory (Weapons 2, Backpack dynamic, Special Items 12).
+      </p>
+
+      <h3 style="margin-bottom:6px;">Weapons</h3>
+      <div class="two-col" style="margin-bottom:12px;">
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">On Character</p>
+          <div id="bs-char-weapons"></div>
+        </div>
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">Kai Monastery</p>
+          <div id="bs-mon-weapons"></div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:6px;">Backpack Items</h3>
+      <div class="two-col" style="margin-bottom:12px;">
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">On Character</p>
+          <div id="bs-char-backpack"></div>
+        </div>
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">Kai Monastery</p>
+          <div id="bs-mon-backpack"></div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:6px;">Special Items</h3>
+      <div class="two-col">
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">On Character</p>
+          <div id="bs-char-special"></div>
+        </div>
+        <div>
+          <p style="font-size:0.8rem;color:#aaa;margin-bottom:6px;">Kai Monastery</p>
+          <div id="bs-mon-special"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Step: discipline selection -->
     <div id="bs-step-discipline" class="hidden">
       <h3 id="bs-disc-title" style="margin-bottom:10px;">Choose Additional Discipline</h3>
@@ -973,6 +1034,11 @@ const DEFAULT_STATE = () => ({
   weaponmastery_weapons: [],
   completed_books: [],     // list of completed book numbers
   backpack_max: 8,
+  kai_monastery: {
+    weapons: [],
+    backpack: [],
+    special_items: [],
+  },
 });
 
 let state = DEFAULT_STATE();
@@ -1181,18 +1247,51 @@ function renderSkillList(containerId, disciplines) {
 }
 
 function renderInventory() {
+  ensureMonasteryState();
   renderWeapons();
   renderBackpack();
   renderSpecialItems();
   renderQuivers();
+  renderMonasteryInventory();
   document.getElementById("gold-val").textContent = state.gold;
   document.getElementById("meals-val").textContent = state.meals;
+}
+
+function renderMonasteryInventory() {
+  const renderList = (containerId, items, emptyText) => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!items || items.length === 0) {
+      el.innerHTML = `<p style="color:#666;font-size:0.85rem;">${emptyText}</p>`;
+      return;
+    }
+    el.innerHTML = "";
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "inv-item";
+      div.innerHTML = `<span>${item.name}</span><span class="item-tag">Stored</span>`;
+      el.appendChild(div);
+    });
+  };
+
+  renderList("monastery-weapons-list", state.kai_monastery.weapons, "No stored weapons.");
+  renderList("monastery-backpack-list", state.kai_monastery.backpack, "No stored backpack items.");
+  renderList("monastery-special-list", state.kai_monastery.special_items, "No stored special items.");
 }
 
 function getBackpackMax() {
   if (typeof state.backpack_max === "number" && state.backpack_max > 0) return state.backpack_max;
   const book = gameData?.books?.find(b => b.book_number === state.book_number);
   return book?.subseries === "Grand Master" ? 10 : 8;
+}
+
+function ensureMonasteryState() {
+  if (!state.kai_monastery || typeof state.kai_monastery !== "object") {
+    state.kai_monastery = { weapons: [], backpack: [], special_items: [] };
+  }
+  if (!Array.isArray(state.kai_monastery.weapons)) state.kai_monastery.weapons = [];
+  if (!Array.isArray(state.kai_monastery.backpack)) state.kai_monastery.backpack = [];
+  if (!Array.isArray(state.kai_monastery.special_items)) state.kai_monastery.special_items = [];
 }
 
 function renderWeapons() {
@@ -1873,6 +1972,7 @@ let bsState = {
 
 function openBookSwitchModal() {
   if (!state.book_number) { toast("No active character.", "error"); return; }
+  ensureMonasteryState();
   const availableBooks = gameData.books.filter(b => b.book_number > state.book_number);
   if (availableBooks.length === 0) { toast("No further books are available.", "info"); return; }
 
@@ -1983,6 +2083,9 @@ function determineBSSteps() {
     steps.push('items');
   }
 
+  // Kai Monastery transfers are only available during book switching
+  steps.push('monastery');
+
   const plan = getBSDisciplinePlan();
   bsState.requiredDisciplineCount = plan.count;
 
@@ -2015,7 +2118,7 @@ function computeBSRemovedItems(nextSubseries) {
 
 // Show the current wizard step
 function showBSStep() {
-  const allStepIds = ['book', 'gold', 'items', 'discipline', 'weapon-extra', 'weapon-newwm'];
+  const allStepIds = ['book', 'gold', 'items', 'monastery', 'discipline', 'weapon-extra', 'weapon-newwm'];
   allStepIds.forEach(s => {
     const el = document.getElementById('bs-step-' + s);
     if (el) el.classList.add('hidden');
@@ -2033,6 +2136,7 @@ function showBSStep() {
 
   // Render dynamic content for each step
   if (currentStep === 'items')          renderBSItemsStep();
+  if (currentStep === 'monastery')      renderBSMonasteryStep();
   if (currentStep === 'discipline')     renderBSDisciplineStep();
   if (currentStep === 'weapon-extra')   renderBSWeaponExtraStep();
   if (currentStep === 'weapon-newwm')   renderBSWeaponNewWMStep();
@@ -2061,6 +2165,14 @@ function bsNext() {
 
   // ── Step: items ─────────────────────────────────────────────────────────
   if (currentStep === 'items') {
+    bsState.currentStepIdx++;
+    if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
+    showBSStep();
+    return;
+  }
+
+  // ── Step: monastery ─────────────────────────────────────────────────────
+  if (currentStep === 'monastery') {
     bsState.currentStepIdx++;
     if (bsState.currentStepIdx >= bsState.steps.length) { finalizeBookSwitch(); return; }
     showBSStep();
@@ -2175,6 +2287,90 @@ function renderBSItemsStep() {
   } else {
     keptEl.innerHTML = '';
   }
+}
+
+function getPendingBackpackMax() {
+  if (bsState?.nextBook?.subseries === "Grand Master") return 10;
+  return getBackpackMax();
+}
+
+function renderBSMonasteryStep() {
+  ensureMonasteryState();
+
+  const renderPair = (charContainerId, monContainerId, charItems, monItems, type) => {
+    const charEl = document.getElementById(charContainerId);
+    const monEl = document.getElementById(monContainerId);
+    charEl.innerHTML = "";
+    monEl.innerHTML = "";
+
+    if (charItems.length === 0) {
+      charEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
+    } else {
+      charItems.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "inv-item";
+        div.innerHTML = `
+          <span>${item.name}</span>
+          <button class="btn btn-secondary btn-sm" onclick="moveToMonastery('${type}', ${idx})">Store &#8594;</button>
+        `;
+        charEl.appendChild(div);
+      });
+    }
+
+    if (monItems.length === 0) {
+      monEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
+    } else {
+      monItems.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "inv-item";
+        div.innerHTML = `
+          <span>${item.name}</span>
+          <button class="btn btn-secondary btn-sm" onclick="moveFromMonastery('${type}', ${idx})">&#8592; Retrieve</button>
+        `;
+        monEl.appendChild(div);
+      });
+    }
+  };
+
+  renderPair("bs-char-weapons", "bs-mon-weapons", state.weapons, state.kai_monastery.weapons, "weapons");
+  renderPair("bs-char-backpack", "bs-mon-backpack", state.backpack, state.kai_monastery.backpack, "backpack");
+  renderPair("bs-char-special", "bs-mon-special", state.special_items, state.kai_monastery.special_items, "special_items");
+}
+
+function moveToMonastery(type, idx) {
+  ensureMonasteryState();
+  let source = [];
+  if (type === "weapons") source = state.weapons;
+  else if (type === "backpack") source = state.backpack;
+  else if (type === "special_items") source = state.special_items;
+  const [item] = source.splice(idx, 1);
+  if (item) state.kai_monastery[type].push(item);
+  renderBSMonasteryStep();
+}
+
+function moveFromMonastery(type, idx) {
+  ensureMonasteryState();
+
+  if (type === "weapons" && state.weapons.length >= 2) {
+    toast("Cannot retrieve: weapons limit is 2.", "error");
+    return;
+  }
+  if (type === "backpack" && state.backpack.length >= getPendingBackpackMax()) {
+    toast(`Cannot retrieve: backpack limit is ${getPendingBackpackMax()}.`, "error");
+    return;
+  }
+  if (type === "special_items" && state.special_items.length >= 12) {
+    toast("Cannot retrieve: special items limit is 12.", "error");
+    return;
+  }
+
+  const [item] = state.kai_monastery[type].splice(idx, 1);
+  if (!item) return;
+  if (type === "weapons") state.weapons.push(item);
+  else if (type === "backpack") state.backpack.push(item);
+  else if (type === "special_items") state.special_items.push(item);
+
+  renderBSMonasteryStep();
 }
 
 function renderBSDisciplineStep() {
@@ -2362,6 +2558,8 @@ function getBSRequiredNewWMWeaponsCount() {
 
 function finalizeBookSwitch() {
   const nextBook = bsState.nextBook;
+  const currentBook = gameData.books.find(b => b.book_number === state.book_number);
+  const currentSub = currentBook?.subseries;
 
   // 1. Mark current book as completed
   if (!state.completed_books) state.completed_books = [];
@@ -2381,6 +2579,14 @@ function finalizeBookSwitch() {
   if (bsState.newGold !== null) state.gold = bsState.newGold;
 
   // 4. Remove disallowed special items
+  const needsItemFilter =
+    (nextBook.subseries === 'Magnakai' && currentSub === 'Kai') ||
+    (nextBook.subseries === 'Grand Master' && (currentSub === 'Kai' || currentSub === 'Magnakai'));
+
+  if (needsItemFilter) {
+    computeBSRemovedItems(nextBook.subseries);
+  }
+
   if (bsState.removedItems.length > 0) {
     const toRemove = new Set(bsState.removedItems);
     state.special_items = state.special_items.filter(item => !toRemove.has(item.name));
