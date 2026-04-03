@@ -122,3 +122,5 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
     - Add 1D10 + 10 gold to the current gold total, adhering to the maximum of 50
     - **If** the current book subseries == 'Grand Master':
       - Allow the player to choose an additional Grandmaster discipline as per the character creation rules
+
+
