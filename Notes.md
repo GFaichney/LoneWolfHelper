@@ -128,3 +128,14 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
 ## Kai Monastery
 - Any number of backpack items, weapons and special items can be transferred to the Kai Monastery inventory. This can only be done when switching books
 - Any number of backpack items, weapons and special items can be transferred from the Kai Monastery inventory. This can only be done when switching books. Backpack, special item and weapon limits must still be observed
+
+## Random number generation
+- Provide the player a button to generate a random number between 0 and 9. This should be present at the top of all tabs
+
+## Midblast in Combat
+- **If** the player has the Kai discipline of Mindblast:
+  - Provide a checkbox to use Mindblast.
+  **If** In combat and Mindblast is checked:
+  - If checked, the Player's effective combat skill is increased
+  - Each round of combat that is rolled, the player loses 2 EP
+  - If the user has < 2 EP then the round cannot be rolled until Mindblast is unchecked

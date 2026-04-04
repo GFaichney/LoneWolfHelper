@@ -188,7 +188,7 @@ def get_combat_ratio_index(ratio: int) -> int:
 
 
 def resolve_combat_round(lw_ep: int, enemy_ep: int, ratio: int,
-                          use_psi_surge: bool, use_kai_surge: bool,
+                          use_mindblast: bool, use_psi_surge: bool, use_kai_surge: bool,
                           enemy_mindblast: bool, has_mindshield: bool,
                           sommerswerd_vs_undead: bool) -> dict:
     """Simulate one round of combat and return the updated state."""
@@ -211,6 +211,8 @@ def resolve_combat_round(lw_ep: int, enemy_ep: int, ratio: int,
         e_loss = str(e_dmg)
 
     extra_lw_cost = 0
+    if use_mindblast:
+        extra_lw_cost += 2
     if use_psi_surge:
         extra_lw_cost += 2
     if use_kai_surge:
@@ -332,6 +334,7 @@ def combat_round():
         lw_ep = int(data["lw_ep"])
         enemy_ep = int(data["enemy_ep"])
         ratio = int(data["ratio"])
+        use_mindblast = bool(data.get("use_mindblast", False))
         use_psi_surge = bool(data.get("use_psi_surge", False))
         use_kai_surge = bool(data.get("use_kai_surge", False))
         enemy_mindblast = bool(data.get("enemy_mindblast", False))
@@ -342,6 +345,7 @@ def combat_round():
 
     result = resolve_combat_round(
         lw_ep, enemy_ep, ratio,
+        use_mindblast,
         use_psi_surge, use_kai_surge,
         enemy_mindblast, has_mindshield,
         sommerswerd_vs_undead,

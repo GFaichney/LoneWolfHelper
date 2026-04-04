@@ -428,6 +428,16 @@
   <button class="tab-btn" data-tab="notes">Notes</button>
 </div>
 
+<div class="container" style="padding-top:10px;padding-bottom:0;">
+  <div class="panel" style="margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <strong style="color:var(--gold);font-size:0.92rem;">Random Number (0–9)</strong>
+      <button class="btn btn-secondary btn-sm" onclick="rollQuickRandom()">Roll</button>
+      <span class="rolled-val" id="quick-random-val">—</span>
+    </div>
+  </div>
+</div>
+
 <div class="container">
 
   <!-- ===== WELCOME / NO CHARACTER ===== -->
@@ -680,6 +690,10 @@
         </select>
       </div>
       <div class="two-col">
+        <div class="combat-modifier" id="combat-mindblast-row" style="display:none;">
+          <label>Use Mindblast (+2 CS, −2 EP per round)</label>
+          <input type="checkbox" id="combat-mindblast" onchange="updateCombatRatio()" />
+        </div>
         <div class="combat-modifier">
           <label>Shield (+2 CS, one-handed)</label>
           <input type="checkbox" id="combat-shield" onchange="updateCombatRatio()" />
@@ -1717,6 +1731,12 @@ function preFillCombatFromSheet() {
   document.getElementById("combat-lw-ep").value = state.ep_current;
   const effCS = state.cs_current + state.lore_cs_bonus;
   document.getElementById("combat-lw-cs").value = effCS;
+
+  const hasMindblast = state.skills.includes("Mindblast");
+  const mindblastRow = document.getElementById("combat-mindblast-row");
+  const mindblastCb = document.getElementById("combat-mindblast");
+  mindblastRow.style.display = hasMindblast ? "flex" : "none";
+  if (!hasMindblast) mindblastCb.checked = false;
   
   const hasSommerswerd = state.special_items.some(i => i.name.toLowerCase() === 'sommerswerd');
   const swCheckbox = document.getElementById("combat-sommerswerd");
@@ -1763,7 +1783,6 @@ function updateCombatDisciplineSelect() {
   const sel = document.getElementById("combat-discipline-bonus");
   sel.innerHTML = '<option value="0">None</option>';
   const disciplines = [
-    {name: "Mindblast", bonus: 2, label: "Mindblast (+2 CS)"},
     {name: "Psi-surge", bonus: 4, label: "Psi-surge (+4 CS, −2 EP/round)"},
     {name: "Kai-surge", bonus: 8, label: "Kai-surge (+8 CS, −1 EP/round)"},
   ];
@@ -1788,6 +1807,9 @@ function updateCombatRatio() {
 
   const shieldChecked = document.getElementById("combat-shield").checked;
   if (shieldChecked) mod += 2;
+
+  const mindblastChecked = document.getElementById("combat-mindblast")?.checked;
+  if (mindblastChecked) mod += 2;
 
   const sommerswerdChecked = document.getElementById("combat-sommerswerd").checked;
   if (sommerswerdChecked) {
@@ -1843,12 +1865,19 @@ function initCombat() {
 
 async function doCombatRound() {
   if (!combatActive) return;
-  combatState.round++;
 
   const discSel = document.getElementById("combat-discipline-bonus");
   const discName = discSel.selectedOptions[0]?.dataset?.name || "";
   const use_psi_surge = discName === "Psi-surge";
   const use_kai_surge = discName === "Kai-surge";
+  const use_mindblast = document.getElementById("combat-mindblast")?.checked === true;
+
+  if (use_mindblast && combatState.lw_ep < 2) {
+    toast("Mindblast requires at least 2 EP. Uncheck Mindblast to continue.", "error");
+    return;
+  }
+
+  combatState.round++;
   const enemy_mindblast = document.getElementById("combat-enemy-mindblast").checked;
   const has_mindshield = state.skills.includes("Mindshield") || state.skills.includes("Psi-screen") || state.skills.includes("Kai-screen");
   const sommerswerd_vs_undead = document.getElementById("combat-sommerswerd").checked && document.getElementById("combat-undead").checked;
@@ -1857,6 +1886,7 @@ async function doCombatRound() {
     lw_ep: combatState.lw_ep,
     enemy_ep: combatState.enemy_ep,
     ratio: combatState.ratio,
+    use_mindblast,
     use_psi_surge,
     use_kai_surge,
     enemy_mindblast,
@@ -3018,6 +3048,16 @@ function toast(msg, type = "info") {
     el.classList.remove("show");
     setTimeout(() => el.remove(), 300);
   }, 3000);
+}
+
+async function rollQuickRandom() {
+  try {
+    const resp = await fetch("/api/roll_random");
+    const data = await resp.json();
+    document.getElementById("quick-random-val").textContent = data.value;
+  } catch (e) {
+    toast("Failed to roll random number.", "error");
+  }
 }
 
 // =============================================================================
