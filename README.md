@@ -35,6 +35,7 @@ There are two kinds of persistence:
 - **Named save slots (filesystem):** stored as JSON files in `saves/` in the project root
 
 When you load a save from disk and then click **Save** again:
+
 - the **Session Name** is pre-populated from the loaded save
 - the same save file is overwritten (instead of creating a new slot)
 

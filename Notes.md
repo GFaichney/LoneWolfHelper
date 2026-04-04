@@ -3,12 +3,15 @@
 Phase 4: Starting Equipment
 
 1. Roll for Starting Gold
+
 - If the chosen book's subseries is `Kai`, pick a random number between 1 and 10. Add 10 to it
 - If the chosen book's subseries is `Magnakai`, pick a random number between 1 and 10. Add 10 to it
 - If the chosen book's subseries is `Grand Master`, pick a random number between 1 and 10. Add 20 to it
 
 2. Equipment
+
 - If the chosen book is a Kai book, gain 2 random items from the list below:
+
 ```JSON
 {
       "random_equipment_table": [
@@ -27,6 +30,7 @@ Phase 4: Starting Equipment
 ```
 
 - If the chosen book is a Magnakai book, allow the user the choice of 5 items from the list below:
+
 ```JSON
 "starting_equipment_options": [
         { "item": "Sword", "type": "Weapon" },
@@ -41,6 +45,7 @@ Phase 4: Starting Equipment
 ```
 
 - If the chosen book is a Grand Master book, allow the user the choice of 5 items from the list below:
+
 ```JSON
 "starting_equipment_options": [
         { "item": "Sword", "type": "Weapon" },
@@ -55,13 +60,14 @@ Phase 4: Starting Equipment
       ]
 ```
 
-
 ## Extra Combat Logic:
+
 In the combat tab, when calculating the player's combat skill, if a weapon is used that matches that chosen for the player's weaponskill discipline (if they have it) then +2 CS should be added.
 
 Sommerswerd checkbox should only be available if the player has the Sommerswerd in their special items
 
 **If** In Combat:
+
   - **If** Sommerswerd is checked:
     - **If** the Player has Grand Weaponmastery, add 5 CS
     - **else if** the player has Magnakai discipline of Weaponmastery with `Sword` as one of the weapons, add 3 CS
@@ -76,6 +82,7 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
 
 
 # Book switching logic
+
 - The UI should allow the player to change books to another book (next_book), with the following rules:
   - next_book must be after the current book in the Gamebook_Metadata as given in `Instructions.md`
   - The current book should be added to a list of completed books
@@ -104,8 +111,8 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
     - **If** the current book subseries == 'Magnakai':
       - Allow the user to choose an additional Magnakai discipline as per the rules at character creation
         - **If** the player already has Weaponmastery
-       - **then** allow them to add an additional weapon to the list
-       - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
+        - **then** allow them to add an additional weapon to the list
+        - **elif** the player chooses Weaponmastery then allow them to choose 3 weapons PLUS 1 additional weapon for each completed Magnakai book 
   - **If** next_book.suberies == 'Grand Master':
     - Change the maximum backpack size to 10 items
     - **If** the current book subseries == 'Magnakai' or 'Kai':
@@ -126,13 +133,16 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
 
 
 ## Kai Monastery
+
 - Any number of backpack items, weapons and special items can be transferred to the Kai Monastery inventory. This can only be done when switching books
 - Any number of backpack items, weapons and special items can be transferred from the Kai Monastery inventory. This can only be done when switching books. Backpack, special item and weapon limits must still be observed
 
 ## Random number generation
+
 - Provide the player a button to generate a random number between 0 and 9. This should be present at the top of all tabs
 
 ## Midblast in Combat
+
 - **If** the player has the Kai discipline of Mindblast:
   - Provide a checkbox to use Mindblast.
   **If** In combat and Mindblast is checked:
@@ -141,6 +151,27 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
   - If the user has < 2 EP then the round cannot be rolled until Mindblast is unchecked
 
 ## Additional Save Game Logic
+
 - **If** the player clicks save game and the game was previously loaded from disk:
   - Pre-populate the `Session Name` field with the previous session name
   - Overwrite the previous save once `Save` button is clicked
+
+## Weapon Inventory Logic
+
+- At most 2 weapons can be carried at once
+- When adding a weapon, the player can enter a description and then choose the weapon type from a dropdown.
+- The weapon dropdown should consist of the following weapon types:
+  - Dagger
+  - Short Sword
+  - Spear
+  - Mace
+  - Warhammer
+  - Sword
+  - Axe
+  - Quarterstaff
+  - Broadsword
+  - Bow
+  - Other
+- The player can also enter a CS modifier for the weapon. This should be added to the player's CS in combat if this weapon is selected
+- The weapon type is what should be used in combat to determine CS bonus
+ 

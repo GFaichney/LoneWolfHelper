@@ -595,7 +595,23 @@
       <h2>Weapons <span class="inv-count" id="weapons-count">(0/2)</span></h2>
       <div id="weapons-list"></div>
       <div class="inv-add-row">
-        <input type="text" id="weapon-input" placeholder="Weapon name…" />
+        <input type="text" id="weapon-input" placeholder="Description (optional)…" />
+      </div>
+      <div class="inv-add-row">
+        <select id="weapon-type-input">
+          <option value="Dagger">Dagger</option>
+          <option value="Short Sword">Short Sword</option>
+          <option value="Spear">Spear</option>
+          <option value="Mace">Mace</option>
+          <option value="Warhammer">Warhammer</option>
+          <option value="Sword">Sword</option>
+          <option value="Axe">Axe</option>
+          <option value="Quarterstaff">Quarterstaff</option>
+          <option value="Broadsword">Broadsword</option>
+          <option value="Bow">Bow</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="number" id="weapon-cs-mod-input" placeholder="CS mod" value="0" step="1" style="width:5ch; min-width:9ch; flex:0 0 5ch;" />
         <button class="btn btn-primary btn-sm" onclick="addWeapon()">Add</button>
       </div>
     </div>
@@ -1085,6 +1101,11 @@ let combatState = {
   round: 0,
 };
 
+const WEAPON_TYPES = [
+  "Dagger", "Short Sword", "Spear", "Mace", "Warhammer",
+  "Sword", "Axe", "Quarterstaff", "Broadsword", "Bow", "Other",
+];
+
 // =============================================================================
 // INIT
 // =============================================================================
@@ -1284,7 +1305,10 @@ function renderMonasteryInventory() {
     items.forEach(item => {
       const div = document.createElement("div");
       div.className = "inv-item";
-      div.innerHTML = `<span>${item.name}</span><span class="item-tag">Stored</span>`;
+      const label = containerId === "monastery-weapons-list"
+        ? getWeaponLabel(item)
+        : item.name;
+      div.innerHTML = `<span>${label}</span><span class="item-tag">Stored</span>`;
       el.appendChild(div);
     });
   };
@@ -1313,9 +1337,25 @@ function renderWeapons() {
   const list = document.getElementById("weapons-list");
   list.innerHTML = "";
   state.weapons.forEach((w, i) => {
-    list.appendChild(makeInvItem(w.name, "Weapon", () => removeWeapon(i)));
+    list.appendChild(makeInvItem(getWeaponLabel(w), "Weapon", () => removeWeapon(i)));
   });
   document.getElementById("weapons-count").textContent = `(${state.weapons.length}/2)`;
+}
+
+function normalizeWeaponType(value) {
+  const val = (value || "").toString().trim().toLowerCase();
+  const found = WEAPON_TYPES.find(t => t.toLowerCase() === val);
+  if (found) return found;
+  return "Other";
+}
+
+function getWeaponLabel(w) {
+  const type = normalizeWeaponType(w?.type || w?.name || "Other");
+  const desc = (w?.name || "").trim();
+  const mod = Number(w?.cs_modifier || 0);
+  const descPart = desc ? `${desc} [${type}]` : type;
+  const modPart = mod !== 0 ? ` (${mod >= 0 ? "+" : ""}${mod} CS)` : "";
+  return `${descPart}${modPart}`;
 }
 
 function renderBackpack() {
@@ -1471,19 +1511,37 @@ function adjustArrows(idx, delta) {
 // INVENTORY
 // =============================================================================
 function addWeapon() {
-  const input = document.getElementById("weapon-input");
-  const name = input.value.trim();
-  if (!name) return;
+  const descInput = document.getElementById("weapon-input");
+  const typeInput = document.getElementById("weapon-type-input");
+  const modInput = document.getElementById("weapon-cs-mod-input");
+  const description = descInput.value.trim();
+  const type = normalizeWeaponType(typeInput.value);
+  const csMod = parseInt(modInput.value || "0", 10) || 0;
+
+  if (type === "Other" && !description) {
+    toast("Enter a description when weapon type is Other.", "error");
+    return;
+  }
+
   if (state.weapons.length >= 2) { toast("You can only carry 2 weapons.", "error"); return; }
-  state.weapons.push({name});
-  input.value = "";
+  state.weapons.push({
+    name: description,
+    type,
+    cs_modifier: csMod,
+  });
+  descInput.value = "";
+  modInput.value = "0";
   renderWeapons();
+  updateCombatWeaponSelect();
+  updateCombatRatio();
   saveStateToStorage();
 }
 
 function removeWeapon(idx) {
   state.weapons.splice(idx, 1);
   renderWeapons();
+  updateCombatWeaponSelect();
+  updateCombatRatio();
   saveStateToStorage();
 }
 
@@ -1767,10 +1825,10 @@ function updateCombatWeaponSelect() {
   } else {
     sel.disabled = false;
     sel.innerHTML = '<option value="none">No weapon (−4 CS)</option><option value="normal">Standard weapon (no bonus)</option>';
-    state.weapons.forEach(w => {
+    state.weapons.forEach((w, i) => {
       const opt = document.createElement("option");
-      opt.value = w.name;
-      opt.textContent = w.name;
+      opt.value = `weapon:${i}`;
+      opt.textContent = getWeaponLabel(w);
       sel.appendChild(opt);
     });
     if (Array.from(sel.options).some(o => o.value === oldVal)) {
@@ -1824,7 +1882,20 @@ function updateCombatRatio() {
     }
   } else {
     if (weaponVal !== "none" && weaponVal !== "normal") {
-      const activeWep = weaponVal.toLowerCase();
+      let activeWep = "";
+      let weaponMod = 0;
+
+      if (weaponVal.startsWith("weapon:")) {
+        const idx = parseInt(weaponVal.split(":")[1] || "-1", 10);
+        const w = Number.isInteger(idx) ? state.weapons[idx] : null;
+        activeWep = normalizeWeaponType(w?.type || w?.name || "").toLowerCase();
+        weaponMod = Number(w?.cs_modifier || 0);
+      } else {
+        activeWep = weaponVal.toLowerCase();
+      }
+
+      mod += weaponMod;
+
       if (state.skills.includes("Grand Weaponmastery")) {
         mod += 5;
       } else if (state.skills.includes("Weaponmastery") && (state.weaponmastery_weapons || []).map(w => w.toLowerCase()).includes(activeWep)) {
@@ -2338,10 +2409,11 @@ function renderBSMonasteryStep() {
       charEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
     } else {
       charItems.forEach((item, idx) => {
+        const label = type === "weapons" ? getWeaponLabel(item) : item.name;
         const div = document.createElement("div");
         div.className = "inv-item";
         div.innerHTML = `
-          <span>${item.name}</span>
+          <span>${label}</span>
           <button class="btn btn-secondary btn-sm" onclick="moveToMonastery('${type}', ${idx})">Store &#8594;</button>
         `;
         charEl.appendChild(div);
@@ -2352,10 +2424,11 @@ function renderBSMonasteryStep() {
       monEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
     } else {
       monItems.forEach((item, idx) => {
+        const label = type === "weapons" ? getWeaponLabel(item) : item.name;
         const div = document.createElement("div");
         div.className = "inv-item";
         div.innerHTML = `
-          <span>${item.name}</span>
+          <span>${label}</span>
           <button class="btn btn-secondary btn-sm" onclick="moveFromMonastery('${type}', ${idx})">&#8592; Retrieve</button>
         `;
         monEl.appendChild(div);
