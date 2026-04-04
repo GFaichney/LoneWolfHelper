@@ -431,6 +431,48 @@ def get_save(save_id: str):
     return jsonify(entry)
 
 
+@app.route("/api/saves/<save_id>", methods=["PUT"])
+def update_save(save_id: str):
+    path = _save_file_path(save_id)
+    if not os.path.exists(path):
+        return jsonify({"error": "Save not found"}), 404
+
+    data = request.get_json(force=True)
+    try:
+        session = str(data["session"]).strip()
+        page = str(data["page"]).strip()
+        state = data["state"]
+    except KeyError as exc:
+        return jsonify({"error": f"Missing field: {exc}"}), 400
+
+    if not session:
+        return jsonify({"error": "Session is required"}), 400
+    if not page:
+        return jsonify({"error": "Page is required"}), 400
+    if not isinstance(state, dict):
+        return jsonify({"error": "State must be an object"}), 400
+
+    book_number = state.get("book_number")
+    book = next((b for b in GAMEBOOK_METADATA if b["book_number"] == book_number), None)
+    book_name = book["book_name"] if book else "Unknown"
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    entry = {
+        "id": save_id,
+        "label": f"{book_name} — p.{page} — \"{session}\"",
+        "session": session,
+        "page": page,
+        "book_name": book_name,
+        "timestamp": timestamp,
+        "state": state,
+    }
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(entry, f, indent=2, ensure_ascii=False)
+
+    return jsonify(entry)
+
+
 @app.route("/api/saves/<save_id>", methods=["DELETE"])
 def delete_save(save_id: str):
     path = _save_file_path(save_id)

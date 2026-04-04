@@ -1024,6 +1024,7 @@
 // =============================================================================
 let gameData = null; // loaded from API
 let pendingLoad = null; // save slot to load
+let lastLoadedSave = null; // {id, session, page} for overwrite-on-save behavior
 
 const DEFAULT_STATE = () => ({
   name: "Lone Wolf",
@@ -2682,7 +2683,7 @@ function finalizeBookSwitch() {
 // =============================================================================
 function openSaveModal() {
   if (!state.book_number) { toast("No character to save.", "error"); return; }
-  document.getElementById("save-session-name").value = "";
+  document.getElementById("save-session-name").value = lastLoadedSave?.session || "";
   document.getElementById("save-page").value = "";
   openModal("modal-save");
 }
@@ -2694,20 +2695,50 @@ async function doSave() {
   if (!page) { toast("Enter a page/section number.", "error"); return; }
 
   try {
-    const resp = await fetch("/api/saves", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        session,
-        page,
-        state: JSON.parse(JSON.stringify(state)),
-      }),
-    });
-    const data = await resp.json();
+    const payload = {
+      session,
+      page,
+      state: JSON.parse(JSON.stringify(state)),
+    };
+
+    let resp;
+    let data;
+
+    // If this game came from disk, overwrite that same save file.
+    if (lastLoadedSave?.id) {
+      resp = await fetch(`/api/saves/${encodeURIComponent(lastLoadedSave.id)}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+      data = await resp.json();
+
+      // If original save no longer exists, fall back to creating a new save.
+      if (resp.status === 404) {
+        resp = await fetch("/api/saves", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload),
+        });
+        data = await resp.json();
+      }
+    } else {
+      resp = await fetch("/api/saves", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+      data = await resp.json();
+    }
+
     if (!resp.ok) {
       toast(data.error || "Failed to save game.", "error");
       return;
     }
+
+    // Keep overwrite linkage for subsequent saves.
+    lastLoadedSave = { id: data.id, session: data.session, page: data.page };
+
     closeModal("modal-save");
     toast("Game saved!", "success");
   } catch (e) {
@@ -2773,6 +2804,11 @@ async function selectLoad(id) {
 function confirmLoad() {
   if (!pendingLoad) return;
   state = Object.assign(DEFAULT_STATE(), pendingLoad.state);
+  lastLoadedSave = {
+    id: pendingLoad.id,
+    session: pendingLoad.session,
+    page: pendingLoad.page,
+  };
   saveStateToStorage();
   closeModal("modal-load-confirm");
   renderAll();
@@ -2799,6 +2835,7 @@ async function deleteSave(id) {
 // =============================================================================
 function openCharCreateModal() {
   ccState = { step: 1, name: "", book: null, cs: null, ep: null, disciplines: [], gold: null, weaponskillWeapon: null, weaponmasteryWeapons: [] };
+  lastLoadedSave = null;
   document.getElementById("new-char-name").value = "";
   document.getElementById("new-char-book").value = "";
   document.getElementById("new-cs-val").textContent = "—";
@@ -2810,6 +2847,7 @@ function openCharCreateModal() {
 function confirmNewGame() {
   if (confirm("Start a new game? Your unsaved progress will be lost.")) {
     state = DEFAULT_STATE();
+    lastLoadedSave = null;
     saveStateToStorage();
     renderAll();
     openCharCreateModal();

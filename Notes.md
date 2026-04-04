@@ -139,3 +139,8 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
   - If checked, the Player's effective combat skill is increased
   - Each round of combat that is rolled, the player loses 2 EP
   - If the user has < 2 EP then the round cannot be rolled until Mindblast is unchecked
+
+## Additional Save Game Logic
+- **If** the player clicks save game and the game was previously loaded from disk:
+  - Pre-populate the `Session Name` field with the previous session name
+  - Overwrite the previous save once `Save` button is clicked
