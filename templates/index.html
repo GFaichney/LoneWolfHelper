@@ -503,7 +503,7 @@
           </div>
         </div>
         <div>
-          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective CS (with Lore Circle bonuses)</p>
+          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective Max CS (Lore + Special Items)</p>
           <p style="font-size:1.4rem;font-weight:bold;color:var(--blue)" id="eff-cs-val">0</p>
         </div>
       </div>
@@ -534,7 +534,7 @@
           </div>
         </div>
         <div>
-          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective Max EP (with Lore Circle bonuses)</p>
+          <p style="font-size:0.8rem;color:#888;padding-top:8px;">Effective Max EP (Lore + Special Items)</p>
           <p style="font-size:1.4rem;font-weight:bold;color:var(--green)" id="eff-ep-val">0</p>
         </div>
       </div>
@@ -630,6 +630,11 @@
       <div id="special-list"></div>
       <div class="inv-add-row">
         <input type="text" id="special-input" placeholder="Special item name…" />
+      </div>
+      <div class="inv-add-row">
+        <input type="text" id="special-note-input" placeholder="Note (optional)…" />
+        <input type="number" id="special-cs-bonus-input" placeholder="CS +" value="0" step="1" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> CS
+        <input type="number" id="special-ep-bonus-input" placeholder="EP +" value="0" step="1" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> EP
         <button class="btn btn-primary btn-sm" onclick="addSpecialItem()">Add</button>
       </div>
     </div>
@@ -1195,16 +1200,15 @@ function renderCharSheet() {
   document.getElementById("ep-max-val").textContent = state.ep_max;
   document.getElementById("ep-current-val").textContent = state.ep_current;
 
-  const effCS = state.cs_current + state.lore_cs_bonus;
-  const effEPMax = state.ep_max + state.lore_ep_bonus;
-  document.getElementById("eff-cs-val").textContent = effCS;
+  const { effCSMax, effEPMax } = getEffectiveMaxes();
+  document.getElementById("eff-cs-val").textContent = effCSMax;
   document.getElementById("eff-ep-val").textContent = effEPMax;
 
   document.getElementById("cs-current-label").textContent = state.cs_current;
   document.getElementById("ep-current-label").textContent = state.ep_current;
 
-  const csBarPct = state.cs_max > 0 ? Math.min(100, (state.cs_current / state.cs_max) * 100) : 0;
-  const epBarPct = state.ep_max > 0 ? Math.min(100, (state.ep_current / state.ep_max) * 100) : 0;
+  const csBarPct = effCSMax > 0 ? Math.min(100, (state.cs_current / effCSMax) * 100) : 0;
+  const epBarPct = effEPMax > 0 ? Math.min(100, (state.ep_current / effEPMax) * 100) : 0;
   document.getElementById("cs-bar").style.width = csBarPct + "%";
   document.getElementById("ep-bar").style.width = epBarPct + "%";
 
@@ -1224,6 +1228,29 @@ function renderCharSheet() {
   }
 
   updateRankBadge();
+}
+
+function getSpecialItemBonuses() {
+  let cs_bonus = 0;
+  let ep_bonus = 0;
+  (state.special_items || []).forEach(item => {
+    cs_bonus += Number(item?.cs_bonus || 0) || 0;
+    ep_bonus += Number(item?.ep_bonus || 0) || 0;
+  });
+  return { cs_bonus, ep_bonus };
+}
+
+function getEffectiveMaxes() {
+  const specialBonuses = getSpecialItemBonuses();
+  const effCSMax = state.cs_max + state.lore_cs_bonus + specialBonuses.cs_bonus;
+  const effEPMax = state.ep_max + state.lore_ep_bonus + specialBonuses.ep_bonus;
+  return { effCSMax: Math.max(0, effCSMax), effEPMax: Math.max(0, effEPMax) };
+}
+
+function clampCurrentToEffectiveMaxes() {
+  const { effCSMax, effEPMax } = getEffectiveMaxes();
+  state.cs_current = Math.max(0, Math.min(effCSMax, state.cs_current));
+  state.ep_current = Math.max(0, Math.min(effEPMax, state.ep_current));
 }
 
 function updateRankBadge() {
@@ -1307,8 +1334,10 @@ function renderMonasteryInventory() {
       div.className = "inv-item";
       const label = containerId === "monastery-weapons-list"
         ? getWeaponLabel(item)
-        : item.name;
-      div.innerHTML = `<span>${label}</span><span class="item-tag">Stored</span>`;
+        : (containerId === "monastery-special-list"
+          ? getSpecialItemLabel(item)
+          : (item.name || ""));
+      div.innerHTML = `<span>${escapeHtml(label)}</span><span class="item-tag">Stored</span>`;
       el.appendChild(div);
     });
   };
@@ -1372,9 +1401,35 @@ function renderSpecialItems() {
   const list = document.getElementById("special-list");
   list.innerHTML = "";
   state.special_items.forEach((item, i) => {
-    list.appendChild(makeInvItem(item.name, "Special", () => removeSpecialItem(i)));
+    const csBonus = Number(item.cs_bonus || 0) || 0;
+    const epBonus = Number(item.ep_bonus || 0) || 0;
+    const bonusText = (csBonus !== 0 || epBonus !== 0)
+      ? `<br/><small style="color:#9ec0ff;">${csBonus >= 0 ? "+" : ""}${csBonus} CS, ${epBonus >= 0 ? "+" : ""}${epBonus} EP</small>`
+      : "";
+    const div = document.createElement("div");
+    div.className = "inv-item";
+    div.innerHTML = `
+      <span>${escapeHtml(item.name || "")}${item.note ? `<br/><small style="color:#aaa;">${escapeHtml(item.note)}</small>` : ""}${bonusText}</span>
+      <span class="item-tag">Special</span>
+    `;
+    const btn = document.createElement("button");
+    btn.className = "btn btn-danger btn-sm";
+    btn.textContent = "Remove";
+    btn.onclick = () => removeSpecialItem(i);
+    div.appendChild(btn);
+    list.appendChild(div);
   });
   document.getElementById("special-count").textContent = `(${state.special_items.length}/12)`;
+}
+
+function getSpecialItemLabel(item) {
+  const name = (item?.name || "").trim();
+  const note = (item?.note || "").trim();
+  const cs = Number(item?.cs_bonus || 0) || 0;
+  const ep = Number(item?.ep_bonus || 0) || 0;
+  const notePart = note ? ` (${note})` : "";
+  const bonusPart = (cs !== 0 || ep !== 0) ? ` [${cs >= 0 ? "+" : ""}${cs} CS, ${ep >= 0 ? "+" : ""}${ep} EP]` : "";
+  return `${name}${notePart}${bonusPart}`;
 }
 
 function renderQuivers() {
@@ -1467,19 +1522,19 @@ function adjustStat(stat, delta) {
   switch(stat) {
     case "cs_max":
       state.cs_max = Math.max(0, state.cs_max + delta);
-      state.cs_current = Math.min(state.cs_current, state.cs_max);
       break;
     case "cs_current":
-      state.cs_current = Math.max(0, Math.min(state.cs_max, state.cs_current + delta));
+      state.cs_current = state.cs_current + delta;
       break;
     case "ep_max":
       state.ep_max = Math.max(0, state.ep_max + delta);
-      state.ep_current = Math.min(state.ep_current, state.ep_max);
       break;
     case "ep_current":
-      state.ep_current = Math.max(0, Math.min(state.ep_max, state.ep_current + delta));
+      state.ep_current = state.ep_current + delta;
       break;
   }
+  // Keep current stats bounded by altered effective maxima.
+  clampCurrentToEffectiveMaxes();
   renderCharSheet();
   saveStateToStorage();
 }
@@ -1565,18 +1620,45 @@ function removeBackpackItem(idx) {
 
 function addSpecialItem() {
   const input = document.getElementById("special-input");
+  const noteInput = document.getElementById("special-note-input");
+  const csInput = document.getElementById("special-cs-bonus-input");
+  const epInput = document.getElementById("special-ep-bonus-input");
   const name = input.value.trim();
+  const note = noteInput.value.trim();
+  const cs_bonus = Math.max(-99, Math.min(99, parseInt(csInput.value || "0", 10) || 0));
+  const ep_bonus = Math.max(-99, Math.min(99, parseInt(epInput.value || "0", 10) || 0));
   if (!name) return;
   if (state.special_items.length >= 12) { toast("Special Items limit reached (max 12).", "error"); return; }
-  state.special_items.push({name});
+  state.special_items.push({name, note, cs_bonus, ep_bonus});
+
+  // Adding bonus special items modifies current stats by the same amount.
+  state.cs_current = Math.max(0, state.cs_current + cs_bonus);
+  state.ep_current = Math.max(0, state.ep_current + ep_bonus);
+  clampCurrentToEffectiveMaxes();
+
   input.value = "";
+  noteInput.value = "";
+  csInput.value = "0";
+  epInput.value = "0";
   renderSpecialItems();
+  renderCharSheet();
+  preFillCombatFromSheet();
   saveStateToStorage();
 }
 
 function removeSpecialItem(idx) {
-  state.special_items.splice(idx, 1);
+  const [removed] = state.special_items.splice(idx, 1);
+
+  // Removing bonus special items modifies current stats by the same amount.
+  const cs_bonus = Number(removed?.cs_bonus || 0) || 0;
+  const ep_bonus = Number(removed?.ep_bonus || 0) || 0;
+  state.cs_current -= cs_bonus;
+  state.ep_current -= ep_bonus;
+  clampCurrentToEffectiveMaxes();
+
   renderSpecialItems();
+  renderCharSheet();
+  preFillCombatFromSheet();
   saveStateToStorage();
 }
 
@@ -1788,6 +1870,7 @@ function removeNote(id) {
 // =============================================================================
 function preFillCombatFromSheet() {
   document.getElementById("combat-lw-ep").value = state.ep_current;
+  // state.cs_current already includes any applied special-item CS deltas.
   const effCS = state.cs_current + state.lore_cs_bonus;
   document.getElementById("combat-lw-cs").value = effCS;
 
@@ -2409,11 +2492,13 @@ function renderBSMonasteryStep() {
       charEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
     } else {
       charItems.forEach((item, idx) => {
-        const label = type === "weapons" ? getWeaponLabel(item) : item.name;
+        const label = type === "weapons"
+          ? getWeaponLabel(item)
+          : (type === "special_items" ? getSpecialItemLabel(item) : item.name);
         const div = document.createElement("div");
         div.className = "inv-item";
         div.innerHTML = `
-          <span>${label}</span>
+          <span>${escapeHtml(label || "")}</span>
           <button class="btn btn-secondary btn-sm" onclick="moveToMonastery('${type}', ${idx})">Store &#8594;</button>
         `;
         charEl.appendChild(div);
@@ -2424,11 +2509,13 @@ function renderBSMonasteryStep() {
       monEl.innerHTML = '<p style="color:#666;font-size:0.82rem;">None</p>';
     } else {
       monItems.forEach((item, idx) => {
-        const label = type === "weapons" ? getWeaponLabel(item) : item.name;
+        const label = type === "weapons"
+          ? getWeaponLabel(item)
+          : (type === "special_items" ? getSpecialItemLabel(item) : item.name);
         const div = document.createElement("div");
         div.className = "inv-item";
         div.innerHTML = `
-          <span>${label}</span>
+          <span>${escapeHtml(label || "")}</span>
           <button class="btn btn-secondary btn-sm" onclick="moveFromMonastery('${type}', ${idx})">&#8592; Retrieve</button>
         `;
         monEl.appendChild(div);
@@ -2728,6 +2815,10 @@ function finalizeBookSwitch() {
       text: `Weaponmastery expanded: added ${bsState.extraWmWeapon}`,
     });
   }
+
+  // 7. Restore current CS/EP to maximum on book change
+  state.cs_current = state.cs_max;
+  state.ep_current = state.ep_max;
 
   saveStateToStorage();
   closeModal('modal-book-switch');

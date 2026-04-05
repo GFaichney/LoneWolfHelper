@@ -175,3 +175,25 @@ If Sommerswerd is checked, the `Weapon in hand` dropdown should be changed to sa
 - The player can also enter a CS modifier for the weapon. This should be added to the player's CS in combat if this weapon is selected
 - The weapon type is what should be used in combat to determine CS bonus
  
+## Additional Special Item Logic
+
+- When adding a special item to inventory, the player can add a note
+- Notes added to special items should be displayed in the inventory
+- Notes should be preserved when storing in the Monastery or retireving from the Monastery
+- Notes should be preserved when saving and loading
+
+## Additional Book Switching Logic
+
+- When changing books, restore the Player's current EP and CS back to maximum
+
+## Additional Special Item Logic
+
+- When adding a special item to inventory, the player should be able to specify an optional CS and EP bonus
+- The character sheet should show an altered effective maximums that take these bonuses in to account.
+- If the item if removed at any point, the altered effective maximums are updated
+- When adding a special item with CS and EP bonuses:
+  - The current CS and EP should be modified by the same amount
+  - The upper limit of current EP and CS should be the altered effective maximum EP and CS
+- When removing a special item with CS and EP bonuses:
+  - The current CS and EP should be modified by the same amount
+  - The upper limit of current EP and CS should be the altered effective maximum EP and CS
