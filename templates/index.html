@@ -633,8 +633,8 @@
       </div>
       <div class="inv-add-row">
         <input type="text" id="special-note-input" placeholder="Note (optional)…" />
-        <input type="number" id="special-cs-bonus-input" placeholder="CS +" value="0" step="1" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> CS
-        <input type="number" id="special-ep-bonus-input" placeholder="EP +" value="0" step="1" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> EP
+        <input type="number" id="special-cs-bonus-input" placeholder="CS +" value="0" step="1" min="-99" max="99" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> <span style="display:flex;align-items:center;">CS</span>
+        <input type="number" id="special-ep-bonus-input" placeholder="EP +" value="0" step="1" min="-99" max="99" style="width:6ch;min-width:6ch;flex:0 0 6ch;" /> <span style="display:flex;align-items:center;">EP</span>
         <button class="btn btn-primary btn-sm" onclick="addSpecialItem()">Add</button>
       </div>
     </div>
@@ -682,7 +682,7 @@
       <div class="two-col">
         <div class="form-row">
           <label>Lone Wolf CS (effective)</label>
-          <input type="number" id="combat-lw-cs" value="0" min="0" />
+          <input type="number" id="combat-lw-cs" value="0" min="0"  onchange="updateCombatRatio()" />
         </div>
         <div class="form-row">
           <label>Lone Wolf EP (current)</label>
@@ -690,11 +690,11 @@
         </div>
         <div class="form-row">
           <label>Enemy CS</label>
-          <input type="number" id="combat-enemy-cs" value="0" min="0" />
+          <input type="number" id="combat-enemy-cs" value="0" min="0" step="1" onchange="updateCombatRatio()" />
         </div>
         <div class="form-row">
           <label>Enemy EP</label>
-          <input type="number" id="combat-enemy-ep" value="0" min="0" />
+          <input type="number" id="combat-enemy-ep" value="0" min="0" step="1" />
         </div>
       </div>
       <div class="form-row">
@@ -2069,10 +2069,11 @@ async function doCombatRound() {
   log.scrollTop = log.scrollHeight;
 
   if (result.enemy_dead) {
+    const { effCSMax, effEPMax } = getEffectiveMaxes();
     log.innerHTML += `<p class="win">VICTORY! The enemy is defeated.</p>`;
     document.getElementById("combat-controls").style.display = "none";
     combatActive = false;
-    state.ep_current = Math.max(0, Math.min(state.ep_max, result.lw_ep));
+    state.ep_current = Math.max(0, Math.min(effEPMax, result.lw_ep));
     renderCharSheet();
     saveStateToStorage();
     toast("Victory! EP updated.", "success");
