@@ -2062,6 +2062,13 @@ async function doCombatRound() {
   document.getElementById("live-lw-ep").textContent = result.lw_ep;
   document.getElementById("live-enemy-ep").textContent = result.enemy_ep;
 
+  // Update combat-tab EP input and character-sheet Current EP after every round
+  document.getElementById("combat-lw-ep").value = result.lw_ep;
+  const { effEPMax: roundEffEPMax } = getEffectiveMaxes();
+  state.ep_current = Math.max(0, Math.min(roundEffEPMax, result.lw_ep));
+  renderCharSheet();
+  saveStateToStorage();
+
   const log = document.getElementById("combat-log");
   log.innerHTML += `<p class="round-sep">— Round ${combatState.round} (Roll: ${result.roll}) —</p>`;
   log.innerHTML += `<p>Enemy loses: <strong>${result.e_loss} EP</strong> &nbsp;|&nbsp; Lone Wolf loses: <strong>${result.lw_loss} EP</strong></p>`;
@@ -2069,13 +2076,9 @@ async function doCombatRound() {
   log.scrollTop = log.scrollHeight;
 
   if (result.enemy_dead) {
-    const { effCSMax, effEPMax } = getEffectiveMaxes();
     log.innerHTML += `<p class="win">VICTORY! The enemy is defeated.</p>`;
     document.getElementById("combat-controls").style.display = "none";
     combatActive = false;
-    state.ep_current = Math.max(0, Math.min(effEPMax, result.lw_ep));
-    renderCharSheet();
-    saveStateToStorage();
     toast("Victory! EP updated.", "success");
   } else if (result.lw_dead) {
     log.innerHTML += `<p class="lose">DEFEAT! Lone Wolf has fallen. The adventure ends.</p>`;

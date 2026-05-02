@@ -108,6 +108,8 @@ Execute this loop until either Lone Wolf or the Enemy reaches 0 Endurance Points
 
 4. Update Endurance Points
 - Subtract the final EP loss from both Lone Wolf and the Enemy.
+- Update `Lone Wolf EP (current)` field on the combat tab
+- Update the `Current EP` on the Character tab
 
 5. Check for Termination
 - If Enemy EP is 0 or less: Victory. Proceed to the post-combat text.
@@ -553,6 +555,7 @@ Phase 3: Select Kai Disciplines
 - Allow the user to add and remove meals
 - Allow the user to increase and decrease maximum combat skill and maximum endurance
 - Allow the user to increase and decrease current combat skill and current endurance. Neither can go above the maximum or below 0
+- Provide a button to restore current endurance to maximum. Pressing the button should prompt with a confirmation dialogue
 - Allow the user to simulate combat as per the rules in `Combat_Algorithm`
 - Allow the user to add and remove skills in the `Kai_Skills` list to their `current_skills_list`.
   - Where the user has added all skills required for a `magnakai_lore_circle`, the resulting CS and EP bonuses should be added to the current CS and EP maximums to show an effective CS and EP maximum. These are the values that should be used for combat
